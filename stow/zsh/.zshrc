@@ -45,7 +45,9 @@ zle -N zle-line-init
 autoload -Uz vcs_info
 zstyle ':vcs_info:git:*' formats ' %F{yellow}(%b)%f'
 precmd() { vcs_info }
-PROMPT='%F{green}%n@%m%f %F{blue}%~%f${vcs_info_msg_0_} %F{cyan}%#%f '
+# Show user@host only when connected over SSH; locally just the user.
+if [[ -n ${SSH_CONNECTION:-} ]]; then PROMPT_HOST='%n@%m'; else PROMPT_HOST='%n'; fi
+PROMPT='%F{green}${PROMPT_HOST}%f %F{blue}%~%f${vcs_info_msg_0_} %F{cyan}%#%f '
 RPROMPT='%F{245}${VIMODE}%f'
 
 # ---- Aliases ----
