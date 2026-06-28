@@ -58,6 +58,33 @@ if ! fc-list | grep -qi "JetBrainsMono Nerd Font"; then
 fi
 
 # ---------------------------------------------------------------------------
+log "Making kitty the default terminal (GNOME-specific, idempotent)"
+KITTY_BIN="$(command -v kitty || true)"
+if [ -n "$KITTY_BIN" ]; then
+  # 1) Debian alternative — used by apps that invoke x-terminal-emulator
+  sudo update-alternatives --install /usr/bin/x-terminal-emulator x-terminal-emulator "$KITTY_BIN" 50
+  sudo update-alternatives --set x-terminal-emulator "$KITTY_BIN"
+
+  # 2) GNOME Ctrl+Alt+T is hardwired to gnome-terminal and ignores the alternative.
+  #    Free the built-in 'terminal' binding, then add a custom shortcut -> kitty.
+  if command -v gsettings >/dev/null 2>&1 && [ -n "${XDG_CURRENT_DESKTOP:-}" ]; then
+    mk=org.gnome.settings-daemon.plugins.media-keys
+    path=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/kitty/
+    base="$mk.custom-keybinding:$path"
+    gsettings set "$mk" terminal "@as []" 2>/dev/null || true   # release built-in C-A-t
+    current="$(gsettings get "$mk" custom-keybindings 2>/dev/null || echo '@as []')"
+    case "$current" in
+      *"$path"*)            : ;;                                  # already registered
+      "@as []"|"[]")        gsettings set "$mk" custom-keybindings "['$path']" ;;
+      *)                    gsettings set "$mk" custom-keybindings "${current%]}, '$path']" ;;
+    esac
+    gsettings set "$base" name 'kitty'
+    gsettings set "$base" command 'kitty'
+    gsettings set "$base" binding '<Primary><Alt>t'
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 log "Installing zsh plugins (pinned)"
 mkdir -p "$ZDATA"
 clone_pinned https://github.com/zsh-users/zsh-autosuggestions    "$ZSH_AUTOSUGGEST_TAG" "$ZDATA/zsh-autosuggestions"
