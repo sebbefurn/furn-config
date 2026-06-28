@@ -6,11 +6,12 @@ set nocompatible
 filetype plugin indent on
 syntax on
 
-" ---- Colors: vendored gruvbox, fall back to built-in retrobox if missing ----
+" ---- Colors: vendored gruvbox (hard contrast), fall back to retrobox ----
 set background=dark
 if has('termguicolors')
   set termguicolors
 endif
+let g:gruvbox_contrast_dark = 'hard'  " darker bg0_h (#1d2021); set before colorscheme
 silent! colorscheme gruvbox
 if !exists('g:colors_name') || g:colors_name !=# 'gruvbox'
   silent! colorscheme retrobox        " built-in, gruvbox-like

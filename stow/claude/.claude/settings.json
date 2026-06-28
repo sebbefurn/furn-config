@@ -10,6 +10,11 @@
   "tui": "fullscreen",
   "theme": "dark",
   "editorMode": "vim",
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline.sh",
+    "padding": 1
+  },
   "permissions": {
     "defaultMode": "auto"
   },

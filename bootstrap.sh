@@ -158,4 +158,4 @@ EOF
 fi
 
 log "Done. Start a new terminal (or 'exec zsh') for zsh + tmux."
-log "Caps Lock = Esc · theme = gruvbox dark · editor = vim"
+log "Caps Lock = Esc · theme = gruvbox dark (hard) · editor = vim"

@@ -18,12 +18,12 @@ Then open a new terminal (or `exec zsh`).
 | **zsh** | login shell, vi-mode, autosuggestions + syntax-highlighting (pinned, no framework), git-aware prompt, auto-attaches tmux |
 | **tmux** | prefix `C-Space`, vi copy-mode, `\|`/`-` splits, TPM (sensible, yank, vim-tmux-navigator), gruvbox status |
 | **vim** | stock vim, zero plugins (except vim-tmux-navigator), gruvbox, sane defaults |
-| **kitty** | JetBrainsMono Nerd Font, gruvbox dark, minimal (tmux multiplexes) |
+| **kitty** | JetBrainsMono Nerd Font, gruvbox dark (hard), minimal (tmux multiplexes) |
 | **keyd** | Caps Lock → Esc, universal (Wayland/X11/TTY) |
 | **git/gh** | rebase-pull, SSH auth + SSH commit signing, curated aliases |
 | **Claude Code** | tracked `settings.json` + global `CLAUDE.md` (secrets excluded) |
 
-Theme is **gruvbox dark** across kitty, tmux, and vim.
+Theme is **gruvbox dark (hard contrast)** across kitty, tmux, and vim.
 
 ## Layout
 
