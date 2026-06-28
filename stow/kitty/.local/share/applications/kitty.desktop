@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=kitty
+GenericName=Terminal emulator
+Comment=Fast, feature-rich, GPU based terminal
+TryExec=kitty
+# Override of /usr/share/applications/kitty.desktop: open maximized.
+# For true fullscreen (hides the GNOME top bar) change 'maximized' -> 'fullscreen'.
+Exec=kitty --start-as=maximized
+Icon=kitty
+Categories=System;TerminalEmulator;

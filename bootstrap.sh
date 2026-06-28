@@ -79,7 +79,7 @@ if [ -n "$KITTY_BIN" ]; then
       *)                    gsettings set "$mk" custom-keybindings "${current%]}, '$path']" ;;
     esac
     gsettings set "$base" name 'kitty'
-    gsettings set "$base" command 'kitty'
+    gsettings set "$base" command 'kitty --start-as=maximized'
     gsettings set "$base" binding '<Primary><Alt>t'
   fi
 fi

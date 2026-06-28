@@ -9,6 +9,7 @@
   },
   "tui": "fullscreen",
   "theme": "dark",
+  "editorMode": "vim",
   "enabledPlugins": {
     "engineering-skills@sebastian-furn-ai": true
   }
