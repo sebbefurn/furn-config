@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+# overnight — unattended sequential issue runner.
+#
+# Runs a Claude agent per GitHub issue in the current project, gating each
+# issue on: agent exit 0, issue CLOSED, clean tracked tree, type-check, tests.
+# Halts the queue on the first failure, preserving everything for review.
+#
+# Operates on the CURRENT WORKING DIRECTORY (must be a git repo with a
+# package.json). Launch with:  systemd-inhibit --what=sleep:idle overnight ...
+# (inside tmux).
+set -u
+
+AGENT_TIMEOUT=90m
+
+usage() {
+  cat <<'EOF'
+usage: overnight <issue|start-end> [...]
+
+Each argument is a single issue number or an inclusive range (end >= start).
+Any mix is allowed; the queue runs in the order given, ranges ascending.
+
+examples:
+  overnight 327-334
+  overnight 1 2 4 10
+  overnight 4-6 8-15 17 20-21
+
+Runs against the current directory: pre-flight requires a git repo with
+package.json, gh auth, claude on PATH, all issues OPEN, a clean tracked
+tree, and green `npm run type-check` + `npm test` before any agent starts.
+Logs land in ~/.local/state/overnight/<dir-name>/<timestamp>/.
+EOF
+}
+
+usage_die() { printf 'overnight: %s\n\n' "$*" >&2; usage >&2; exit 2; }
+
+# ---- Argument parsing (no side effects until args are fully valid) ----
+[ $# -gt 0 ] || usage_die "no issues specified"
+case "${1:-}" in -h|--help) usage; exit 0;; esac
+
+ISSUES=()
+declare -A seen=()
+for arg in "$@"; do
+  if [[ "$arg" =~ ^[0-9]+$ ]]; then
+    lo=$((10#$arg)) hi=$((10#$arg))
+  elif [[ "$arg" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+    lo=$((10#${BASH_REMATCH[1]})) hi=$((10#${BASH_REMATCH[2]}))
+    [ "$hi" -ge "$lo" ] || usage_die "range '$arg': end must be >= start"
+  else
+    usage_die "bad argument '$arg' (expected N or A-B)"
+  fi
+  for ((n = lo; n <= hi; n++)); do
+    [ -z "${seen[$n]:-}" ] || usage_die "issue #$n specified more than once"
+    seen[$n]=1
+    ISSUES+=("$n")
+  done
+done
+
+# ---- Target + logging setup ----
+APP_DIR="$PWD"
+PROJECT="$(basename "$APP_DIR")"
+LOG_DIR="$HOME/.local/state/overnight/$PROJECT/$(date '+%Y-%m-%dT%H-%M-%S')"
+RUN_LOG="$LOG_DIR/run.log"
+
+mkdir -p "$LOG_DIR"
+
+log() { printf '%s  %s\n' "$(date '+%F %T')" "$*" | tee -a "$RUN_LOG"; }
+die() { log "STOP: $*"; log "=== queue halted — everything preserved for morning review ==="; exit 1; }
+
+tracked_dirty() { [ -n "$(git status --porcelain --untracked-files=no)" ]; }
+
+issue_state() { gh issue view "$1" --json state -q .state; }
+issue_url() { gh issue view "$1" --json url -q .url; }
+
+agent_prompt() {
+  local n="$1"
+  cat <<EOF
+You are running unattended overnight as part of an automated queue; no human is available to answer questions, so never ask — decide and proceed, or stop as described below.
+
+Implement GitHub issue #$n using the /implement skill. Read the issue with: gh issue view $n. Verify every acceptance criterion is met, including full test suite and type-check green.
+
+When done: commit your work, post a comment on issue #$n stating what action is required on prod, then close the issue. Closing the issue is the signal that unblocks the next queued issue — only close when genuinely complete.
+
+If you are blocked and cannot proceed without human input: post a comment on issue #$n explaining exactly what you need and why you stopped, leave the issue OPEN, and end your session. Do not close an issue whose work is incomplete.
+EOF
+}
+
+log "logs: $LOG_DIR"
+log "=== overnight run starting in $APP_DIR: issues ${ISSUES[*]} ==="
+
+# ---- Pre-flight ----
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "pre-flight: $APP_DIR is not inside a git repository"
+[ -f "$APP_DIR/package.json" ] || die "pre-flight: no package.json in $APP_DIR"
+gh auth status >/dev/null 2>&1 || die "pre-flight: gh auth status failed"
+command -v claude >/dev/null 2>&1 || die "pre-flight: claude CLI not on PATH"
+
+for n in "${ISSUES[@]}"; do
+  state="$(issue_state "$n")" || die "pre-flight: cannot read issue #$n (nonexistent, or a PR?)"
+  [ "$state" = "OPEN" ] || die "pre-flight: issue #$n is $state, expected OPEN"
+  url="$(issue_url "$n")" || die "pre-flight: cannot read issue #$n URL"
+  case "$url" in
+    */issues/*) ;;
+    *) die "pre-flight: #$n is not an issue ($url)" ;;
+  esac
+done
+
+tracked_dirty && die "pre-flight: tracked working tree is not clean"
+
+log "pre-flight: type-check"
+npm run type-check >"$LOG_DIR/preflight-typecheck.log" 2>&1 || die "pre-flight: baseline type-check red (see preflight-typecheck.log)"
+log "pre-flight: full test suite"
+npm test >"$LOG_DIR/preflight-test.log" 2>&1 || die "pre-flight: baseline tests red (see preflight-test.log)"
+log "pre-flight passed"
+
+# ---- Queue ----
+for n in "${ISSUES[@]}"; do
+  log "--- issue #$n: launching agent (cap $AGENT_TIMEOUT) ---"
+  timeout --kill-after=2m "$AGENT_TIMEOUT" \
+    claude -p "$(agent_prompt "$n")" --dangerously-skip-permissions \
+    >"$LOG_DIR/issue-$n.log" 2>&1 </dev/null
+  rc=$?
+  if [ "$rc" -eq 124 ]; then
+    die "issue #$n: agent hit the $AGENT_TIMEOUT timeout (see issue-$n.log; tree may hold partial work)"
+  fi
+  [ "$rc" -eq 0 ] || die "issue #$n: claude exited $rc (see issue-$n.log)"
+
+  state="$(issue_state "$n")" || die "issue #$n: cannot read issue state after agent exit"
+  [ "$state" = "CLOSED" ] || die "issue #$n: left OPEN by agent — read its issue comment and issue-$n.log"
+
+  tracked_dirty && die "issue #$n: closed but tracked tree is dirty — agent left uncommitted changes"
+
+  log "issue #$n: gate type-check"
+  npm run type-check >"$LOG_DIR/issue-$n-gate-typecheck.log" 2>&1 || die "issue #$n: type-check red after close (see issue-$n-gate-typecheck.log)"
+  log "issue #$n: gate full test suite"
+  npm test >"$LOG_DIR/issue-$n-gate-test.log" 2>&1 || die "issue #$n: tests red after close (see issue-$n-gate-test.log)"
+
+  log "issue #$n: all gates green — $(git log -1 --oneline)"
+done
+
+log "=== overnight run complete: all ${#ISSUES[@]} issues closed, tests green. Review commits, then push. ==="

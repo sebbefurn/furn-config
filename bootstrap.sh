@@ -164,7 +164,7 @@ backup_if_real .claude/CLAUDE.md
 # ---------------------------------------------------------------------------
 # kitty is stowed on workstation only; everything else is universal.
 log "Stowing packages"
-packages=(zsh tmux vim git claude)
+packages=(zsh tmux vim git claude bin)
 is_workstation && packages+=(kitty)
 for pkg in "${packages[@]}"; do
   stow --dir="$REPO_DIR/stow" --target="$HOME" --restow "$pkg"
