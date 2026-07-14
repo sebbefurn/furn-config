@@ -6,27 +6,40 @@
 # Halts the queue on the first failure, preserving everything for review.
 #
 # Operates on the CURRENT WORKING DIRECTORY (must be a git repo with a
-# package.json). Launch with:  systemd-inhibit --what=sleep:idle overnight ...
+# package.json). Launch with:
+#   systemd-inhibit --what=sleep:idle overnight --account sebastian 327-334
 # (inside tmux).
+#
+# --account picks the Claude account the agents spend, by name from
+# ~/.config/claude/accounts (see usage below). There is no default: agents
+# would otherwise quietly bill whatever account happened to be ambient.
 set -u
 
 AGENT_TIMEOUT=90m
 
 usage() {
   cat <<'EOF'
-usage: overnight <issue|start-end> [...]
+usage: overnight --account <name> <issue|start-end> [...]
 
-Each argument is a single issue number or an inclusive range (end >= start).
-Any mix is allowed; the queue runs in the order given, ranges ascending.
+Each positional argument is a single issue number or an inclusive range
+(end >= start). Any mix is allowed; the queue runs in the order given,
+ranges ascending.
+
+--account selects which Claude account the agents spend, by account name
+from the ~/.config/claude/accounts manifest (config dir ~/.claude-<name>).
+It is required unless CLAUDE_CONFIG_DIR is already set in the environment,
+in which case that dir is inherited. The resolved account's email is
+logged at pre-flight, before any agent runs.
 
 examples:
-  overnight 327-334
-  overnight 1 2 4 10
-  overnight 4-6 8-15 17 20-21
+  overnight --account sebastian 327-334
+  overnight --account sebbe 1 2 4 10
+  overnight --account sebastian 4-6 8-15 17 20-21
 
 Runs against the current directory: pre-flight requires a git repo with
-package.json, gh auth, claude on PATH, all issues OPEN, a clean tracked
-tree, and green `npm run type-check` + `npm test` before any agent starts.
+package.json, gh auth, claude on PATH, a logged-in account config dir, all
+issues OPEN, a clean tracked tree, and green `npm run type-check` +
+`npm test` before any agent starts.
 Logs land in ~/.local/state/overnight/<dir-name>/<timestamp>/.
 EOF
 }
@@ -35,11 +48,45 @@ usage_die() { printf 'overnight: %s\n\n' "$*" >&2; usage >&2; exit 2; }
 
 # ---- Argument parsing (no side effects until args are fully valid) ----
 [ $# -gt 0 ] || usage_die "no issues specified"
-case "${1:-}" in -h|--help) usage; exit 0;; esac
+
+ACCOUNT=""
+POSITIONAL=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    --account)
+      [ $# -ge 2 ] || usage_die "--account needs a value (an account name from ~/.config/claude/accounts)"
+      ACCOUNT="$2"; shift 2 ;;
+    --account=*) ACCOUNT="${1#*=}"; shift ;;
+    -*) usage_die "unknown option '$1'" ;;
+    *) POSITIONAL+=("$1"); shift ;;
+  esac
+done
+
+# Account -> config dir. Explicit flag (validated against the manifest) wins;
+# otherwise inherit an already-set CLAUDE_CONFIG_DIR; otherwise refuse rather
+# than silently spend an account.
+ACCOUNTS_FILE="$HOME/.config/claude/accounts"
+known_accounts() { awk '!/^([[:space:]]*(#|$))/ { print $2 }' "$ACCOUNTS_FILE" 2>/dev/null; }
+
+if [ -n "$ACCOUNT" ]; then
+  known_accounts | grep -qx -- "$ACCOUNT" \
+    || usage_die "unknown account '$ACCOUNT' (known, from $ACCOUNTS_FILE: $(known_accounts | paste -sd' ' -))"
+  export CLAUDE_CONFIG_DIR="$HOME/.claude-$ACCOUNT"
+  CONFIG_DESC="$CLAUDE_CONFIG_DIR"
+else
+  [ -n "${CLAUDE_CONFIG_DIR:-}" ] \
+    || usage_die "no account selected: pass --account <name> (known, from $ACCOUNTS_FILE: $(known_accounts | paste -sd' ' -))"
+  export CLAUDE_CONFIG_DIR
+  CONFIG_DESC="$CLAUDE_CONFIG_DIR (inherited)"
+fi
+CONFIG_JSON="$CLAUDE_CONFIG_DIR/.claude.json"
+
+[ ${#POSITIONAL[@]} -gt 0 ] || usage_die "no issues specified"
 
 ISSUES=()
 declare -A seen=()
-for arg in "$@"; do
+for arg in "${POSITIONAL[@]}"; do
   if [[ "$arg" =~ ^[0-9]+$ ]]; then
     lo=$((10#$arg)) hi=$((10#$arg))
   elif [[ "$arg" =~ ^([0-9]+)-([0-9]+)$ ]]; then
@@ -91,7 +138,21 @@ log "=== overnight run starting in $APP_DIR: issues ${ISSUES[*]} ==="
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "pre-flight: $APP_DIR is not inside a git repository"
 [ -f "$APP_DIR/package.json" ] || die "pre-flight: no package.json in $APP_DIR"
 gh auth status >/dev/null 2>&1 || die "pre-flight: gh auth status failed"
-command -v claude >/dev/null 2>&1 || die "pre-flight: claude CLI not on PATH"
+command -v jq >/dev/null 2>&1 || die "pre-flight: jq not on PATH"
+
+# `claude` on PATH is normally a per-account wrapper that would override the
+# CLAUDE_CONFIG_DIR resolved above — use the first claude OUTSIDE the wrapper
+# dir (the real binary).
+CLAUDE_BIN=""
+while IFS= read -r p; do
+  case "$p" in "$HOME/.local/claude-bin/"*) continue ;; esac
+  CLAUDE_BIN="$p"; break
+done < <(type -ap claude)
+[ -n "$CLAUDE_BIN" ] || die "pre-flight: no claude binary on PATH (outside ~/.local/claude-bin)"
+
+ACCOUNT_EMAIL="$(jq -r '.oauthAccount.emailAddress // empty' "$CONFIG_JSON" 2>/dev/null)"
+[ -n "$ACCOUNT_EMAIL" ] || die "pre-flight: no logged-in account in $CONFIG_JSON — run: CLAUDE_CONFIG_DIR=$CLAUDE_CONFIG_DIR claude, then /login"
+log "account: $ACCOUNT_EMAIL ($CONFIG_DESC)"
 
 for n in "${ISSUES[@]}"; do
   state="$(issue_state "$n")" || die "pre-flight: cannot read issue #$n (nonexistent, or a PR?)"
@@ -115,7 +176,7 @@ log "pre-flight passed"
 for n in "${ISSUES[@]}"; do
   log "--- issue #$n: launching agent (cap $AGENT_TIMEOUT) ---"
   timeout --kill-after=2m "$AGENT_TIMEOUT" \
-    claude -p "$(agent_prompt "$n")" --dangerously-skip-permissions \
+    "$CLAUDE_BIN" -p "$(agent_prompt "$n")" --dangerously-skip-permissions \
     >"$LOG_DIR/issue-$n.log" 2>&1 </dev/null
   rc=$?
   if [ "$rc" -eq 124 ]; then

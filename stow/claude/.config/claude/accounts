@@ -1,0 +1,8 @@
+# Claude Code accounts: <command> <account>
+#
+# <command> is installed by bootstrap.sh as ~/.local/claude-bin/<command>
+# (a claude-account wrapper symlink); <account>'s config dir is
+# ~/.claude-<account>. To add an account: add a line here, re-run
+# ./bootstrap.sh, run the new command once and /login.
+claude sebbe
+cc sebastian

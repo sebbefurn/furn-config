@@ -10,7 +10,7 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_DIR"
 
-# ---- Profile selection (explicit, not auto-detected — ADR-0008) ----
+# ---- Profile selection (explicit, not auto-detected) ----
 PROFILE=workstation
 for arg in "$@"; do
   case "$arg" in
@@ -53,7 +53,7 @@ log "Profile: $PROFILE"
 # ---------------------------------------------------------------------------
 # apt packages: a universal core, plus workstation-only extras that exist only
 # for the font (fontconfig/unzip), the keyd source build (build-essential), and
-# the Wayland clipboard (wl-clipboard) — all meaningless headless (ADR-0008).
+# the Wayland clipboard (wl-clipboard) — all meaningless headless.
 log "Installing apt packages"
 sudo apt-get update -qq
 sudo apt-get install -y \
@@ -141,8 +141,9 @@ clone_pinned https://github.com/christoomey/vim-tmux-navigator "$VIM_NAVIGATOR_R
   "$HOME/.vim/pack/plugins/start/vim-tmux-navigator"
 
 # ---------------------------------------------------------------------------
-log "Ensuring ~/.claude is a real dir (Stow tree-fold guard — keeps secrets out of the repo)"
-mkdir -p "$HOME/.claude"
+# Ensure ~/.config/claude is a real dir so stow links its files individually
+# (tree-folding would otherwise symlink the whole dir into the repo).
+mkdir -p "$HOME/.config/claude"
 
 # ---------------------------------------------------------------------------
 log "Backing up conflicting pre-existing files"
@@ -158,8 +159,9 @@ backup_if_real .tmux.conf
 backup_if_real .vimrc
 backup_if_real .gitconfig
 is_workstation && backup_if_real .config/kitty/kitty.conf
-backup_if_real .claude/settings.json
-backup_if_real .claude/CLAUDE.md
+backup_if_real .config/claude/settings.json
+backup_if_real .config/claude/CLAUDE.md
+backup_if_real .config/claude/accounts
 
 # ---------------------------------------------------------------------------
 # kitty is stowed on workstation only; everything else is universal.
@@ -169,6 +171,57 @@ is_workstation && packages+=(kitty)
 for pkg in "${packages[@]}"; do
   stow --dir="$REPO_DIR/stow" --target="$HOME" --restow "$pkg"
 done
+
+# ---------------------------------------------------------------------------
+# Claude Code accounts — manifest-driven, symmetric: every account is an
+# explicit config dir ~/.claude-<account>; no account uses the default
+# ~/.claude. ~/.config/claude/accounts (stowed above) maps command names to
+# accounts; each command is a claude-account wrapper symlink in
+# ~/.local/claude-bin, which .zshrc puts ahead of the updater-owned
+# ~/.local/bin/claude on PATH.
+log "Setting up Claude accounts"
+
+# One-time migration of the legacy default-dir layout (~/.claude account state
+# + its ~/.claude.json sibling) into the explicit sebbe dir. Two same-
+# filesystem renames — logins, history, and sessions all survive. Refuses to
+# move live state out from under a running claude; must run before anything
+# below creates ~/.claude-sebbe, or this guard would never fire again.
+if [ -d "$HOME/.claude" ] && [ ! -d "$HOME/.claude-sebbe" ]; then
+  if pgrep -x claude >/dev/null 2>&1; then
+    warn "claude is running — exit all Claude sessions, then re-run to migrate ~/.claude -> ~/.claude-sebbe"
+    exit 1
+  fi
+  log "Migrating legacy ~/.claude -> ~/.claude-sebbe"
+  mv "$HOME/.claude" "$HOME/.claude-sebbe"
+  if [ -f "$HOME/.claude.json" ]; then
+    mv "$HOME/.claude.json" "$HOME/.claude-sebbe/.claude.json"
+  fi
+fi
+
+# The pre-manifest hand-written cc wrapper is superseded by ~/.local/claude-bin/cc.
+if [ -f "$HOME/.local/bin/cc" ] && [ ! -L "$HOME/.local/bin/cc" ]; then
+  mv "$HOME/.local/bin/cc" "$HOME/.local/bin/cc.pre-furn-config.bak"
+  warn "backed up legacy ~/.local/bin/cc (superseded by ~/.local/claude-bin/cc)"
+fi
+
+# Per-account: config dir with the shared settings/CLAUDE.md linked in, plus
+# the command wrapper. All accounts share one settings.json by design — a
+# /config change in any account lands in the repo working tree, visibly.
+mkdir -p "$HOME/.local/claude-bin"
+while read -r cmd account _; do
+  case "$cmd" in ''|'#'*) continue ;; esac
+  dir="$HOME/.claude-$account"
+  mkdir -p "$dir"
+  for f in settings.json CLAUDE.md; do
+    backup_if_real ".claude-$account/$f"
+    ln -sfn "$HOME/.config/claude/$f" "$dir/$f"
+  done
+  if [ -L "$dir/statusline.sh" ]; then
+    rm "$dir/statusline.sh"   # superseded by ~/.local/bin/claude-statusline
+  fi
+  ln -sfn "$HOME/.local/bin/claude-account" "$HOME/.local/claude-bin/$cmd"
+  log "account $account: $cmd -> ~/.claude-$account"
+done < "$HOME/.config/claude/accounts"
 
 # ---------------------------------------------------------------------------
 log "Installing tmux plugins via TPM (non-interactive)"
@@ -182,8 +235,8 @@ if [ "${SHELL:-}" != "$(command -v zsh)" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Commit signing enrolls this machine's SSH key as a signing identity in the repo
-# (ADR-0005). The server doesn't commit, and we don't enroll its key — skip headless.
+# Commit signing enrolls this machine's SSH key as a signing identity in the
+# repo. The server doesn't commit, and we don't enroll its key — skip headless.
 if is_workstation; then
   log "Configuring git/gh SSH identity"
   SSH_KEY="$HOME/.ssh/id_ed25519"

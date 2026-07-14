@@ -3,20 +3,8 @@ stow/vim/.vim/undo/
 stow/vim/.vim/backup/
 stow/vim/.vim/swap/
 
-# --- Claude Code secrets / runtime (backstop; these live in ~/.claude) ---
-**/.claude/.credentials.json
+# --- Claude Code: per-project local settings are never tracked ---
 **/.claude/settings.local.json
-**/.claude/projects/
-**/.claude/sessions/
-**/.claude/plans/
-**/.claude/history.jsonl
-**/.claude/shell-snapshots/
-**/.claude/cache/
-**/.claude/backups/
-**/.claude/file-history/
-**/.claude/downloads/
-**/.claude/session-env/
-**/.claude/plugins/
 
 # --- Private keys must NEVER be committed ---
 *id_ed25519

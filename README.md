@@ -14,7 +14,7 @@ Then open a new terminal (or `exec zsh`).
 
 ## Profiles
 
-Two machine roles, chosen by an explicit flag (see [ADR-0008](docs/adr/0008-machine-profiles-workstation-vs-headless.md)):
+Two machine roles, chosen by an explicit flag:
 
 - **workstation** (default) — a GUI desktop/laptop. Installs everything.
 - **headless** (`--headless`) — a server you only reach over SSH. Skips the pieces
@@ -32,7 +32,7 @@ Two machine roles, chosen by an explicit flag (see [ADR-0008](docs/adr/0008-mach
 | **kitty** _(workstation)_ | JetBrainsMono Nerd Font, gruvbox dark (hard), minimal (tmux multiplexes) |
 | **keyd** _(workstation)_ | Caps Lock → Esc, universal (Wayland/X11/TTY) |
 | **git/gh** | rebase-pull, curated aliases; SSH auth + SSH commit signing _(workstation)_ |
-| **Claude Code** | tracked `settings.json` + global `CLAUDE.md` (secrets excluded) |
+| **Claude Code** | manifest-driven multi-account (`claude`, `cc`, …) with shared tracked `settings.json` + global `CLAUDE.md` (secrets excluded) |
 
 Theme is **gruvbox dark (hard contrast)** across kitty, tmux, and vim.
 
@@ -42,9 +42,33 @@ Theme is **gruvbox dark (hard contrast)** across kitty, tmux, and vim.
 bootstrap.sh        # apt + keyd-from-source + fonts + stow + chsh + TPM
 stow/               # user configs, symlinked into $HOME by stow
 system/keyd/        # root-owned config, copied to /etc by bootstrap (sudo)
-docs/adr/           # architecture decision records (the "why")
 CONTEXT.md          # glossary
 ```
+
+## Claude accounts
+
+Every Claude Code account is an explicit config dir `~/.claude-<name>` (state
+file `.claude.json` inside it) — no account uses the default `~/.claude`, so
+no tool ever has to special-case "the default account". The manifest
+`~/.config/claude/accounts` (tracked) maps command names to accounts:
+
+```
+claude sebbe
+cc sebastian
+```
+
+Each command is a symlink in `~/.local/claude-bin` to the `claude-account`
+dispatcher, which sets `CLAUDE_CONFIG_DIR` from the manifest and execs the
+real binary. The wrapper dir sits *ahead* of `~/.local/bin` on PATH because
+the Claude updater owns `~/.local/bin/claude` and rewrites it on every update.
+
+All accounts share the tracked `settings.json` and `CLAUDE.md`, symlinked
+into each account dir by `bootstrap.sh`; per-account divergence is
+unsupported by design. Tools that resolve the account themselves (like
+`overnight --account <name>`) bypass the wrappers.
+
+**Adding an account:** add a line to the manifest, re-run `./bootstrap.sh`,
+run the new command once and `/login`.
 
 ## Per-machine manual step (can't be automated — secrets)
 
@@ -64,5 +88,3 @@ gh ssh-key add ~/.ssh/id_ed25519.pub --type signing
 1. `mkdir -p stow/<tool>/<path-relative-to-$HOME>` and put the config there.
 2. `cd stow && stow <tool>`.
 3. Add any package install / pinned dependency to `bootstrap.sh`.
-
-See [`docs/adr/`](docs/adr/) for the reasoning behind each choice.

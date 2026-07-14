@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# claude-account — one wrapper for every Claude Code account.
+#
+# Each command in ~/.local/claude-bin (claude, cc, ...) is a symlink to this
+# script; the manifest (~/.config/claude/accounts) maps the invoked name to an
+# account whose config dir is ~/.claude-<account>. The command name always
+# wins: `cc` is its manifest account even if CLAUDE_CONFIG_DIR is already set.
+# Tools that pick the account themselves (overnight) skip these wrappers and
+# exec the real binary directly.
+#
+# ~/.local/claude-bin sits ahead of ~/.local/bin on PATH because the Claude
+# updater owns ~/.local/bin/claude and rewrites it on every update — a wrapper
+# at that path would be clobbered.
+set -u
+
+MANIFEST="$HOME/.config/claude/accounts"
+cmd="$(basename "$0")"
+
+[ -f "$MANIFEST" ] || { echo "claude-account: no manifest at $MANIFEST — run bootstrap.sh" >&2; exit 1; }
+
+account=""
+while read -r c a _; do
+  case "$c" in ''|'#'*) continue ;; esac
+  if [ "$c" = "$cmd" ]; then account="$a"; break; fi
+done < "$MANIFEST"
+[ -n "$account" ] || { echo "claude-account: command '$cmd' not in $MANIFEST" >&2; exit 1; }
+
+# Real binary = first `claude` on PATH outside the wrapper dir.
+real=""
+while IFS= read -r p; do
+  case "$p" in "$HOME/.local/claude-bin/"*) continue ;; esac
+  real="$p"; break
+done < <(type -ap claude)
+[ -n "$real" ] || { echo "claude-account: no claude binary on PATH (is Claude Code installed?)" >&2; exit 1; }
+
+export CLAUDE_CONFIG_DIR="$HOME/.claude-$account"
+exec "$real" "$@"

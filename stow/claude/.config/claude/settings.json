@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "model": "opus[1m]",
+  "statusLine": {
+    "type": "command",
+    "command": "~/.local/bin/claude-statusline",
+    "padding": 1
+  },
+  "enabledPlugins": {
+    "engineering-skills@sebastian-furn-ai": true
+  },
+  "extraKnownMarketplaces": {
+    "sebastian-furn-ai": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/sebbefurn/sebastian-furn-ai.git"
+      }
+    }
+  },
+  "tui": "fullscreen",
+  "voice": {
+    "enabled": true,
+    "mode": "hold"
+  },
+  "skipWorkflowUsageWarning": true,
+  "theme": "dark",
+  "editorMode": "vim",
+  "voiceEnabled": true
+}

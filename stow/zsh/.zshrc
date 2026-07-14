@@ -8,7 +8,9 @@ fi
 # ---- Environment ----
 export EDITOR=vim
 export VISUAL=vim
-export PATH="$HOME/.local/bin:$PATH"
+# claude-bin holds the per-account Claude wrappers; it must precede
+# ~/.local/bin, where the Claude updater owns the `claude` symlink.
+export PATH="$HOME/.local/claude-bin:$HOME/.local/bin:$PATH"
 
 # ---- History ----
 HISTFILE=~/.zsh_history
