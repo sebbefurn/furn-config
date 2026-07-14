@@ -31,7 +31,7 @@ Two machine roles, chosen by an explicit flag:
 | **vim** | stock vim, zero plugins (except vim-tmux-navigator), gruvbox, sane defaults |
 | **kitty** _(workstation)_ | JetBrainsMono Nerd Font, gruvbox dark (hard), minimal (tmux multiplexes) |
 | **keyd** _(workstation)_ | Caps Lock → Esc, universal (Wayland/X11/TTY) |
-| **git/gh** | rebase-pull, curated aliases; SSH auth + SSH commit signing _(workstation)_ |
+| **git/gh** | merge-pull (`git pr` rebases), curated aliases; SSH auth + SSH commit signing _(workstation)_ |
 | **Claude Code** | manifest-driven multi-account (`claude`, `cc`, …) with shared tracked `settings.json` + global `CLAUDE.md` (secrets excluded) |
 
 Theme is **gruvbox dark (hard contrast)** across kitty, tmux, and vim.
