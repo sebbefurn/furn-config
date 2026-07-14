@@ -70,6 +70,31 @@ unsupported by design. Tools that resolve the account themselves (like
 **Adding an account:** add a line to the manifest, re-run `./bootstrap.sh`,
 run the new command once and `/login`.
 
+## Parallel work: one worktree per effort
+
+Every parallel effort gets its own manually-created git worktree; every tool —
+`claude`, wayfinder sessions, `overnight` — runs plainly inside it with no
+tool-level isolation (no `claude --worktree`). The cwd *is* the isolation;
+the global CLAUDE.md tells agents never to create or enter worktrees themselves.
+
+```sh
+cd ~/Code/<repo>          # any checkout of the repo
+wt-new my-effort          # → ~/Code/worktrees/<repo>/my-effort on branch my-effort
+cd ~/Code/worktrees/<repo>/my-effort
+claude                    # or: overnight --account <name> <issues>
+...                       # merge the branch when done
+wt-done my-effort         # removes worktree + branch
+```
+
+- **`wt-new <name>`** creates the worktree (reusing branch `<name>` if it
+  exists), copies the main checkout's untracked `.env*` files, runs
+  `npm install` when there's a `package.json`, and runs the repo's executable
+  `.wt-setup` (passed the main checkout path as `$1`) if present — so
+  repo-specific setup lives in each repo and `wt-new` stays repo-agnostic.
+- **`wt-done <name>`** removes the worktree and deletes the branch, refusing
+  while the tracked tree is dirty or the branch is unmerged into the default
+  branch.
+
 ## Per-machine manual step (can't be automated — secrets)
 
 git commit signing needs your SSH key, which is never committed. On a fresh machine

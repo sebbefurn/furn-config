@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# wt-new — create an isolated git worktree for one effort.
+#
+# Convention: one manually-created worktree per effort; every tool (claude,
+# wayfinder sessions, overnight) runs plainly inside it — isolation lives in
+# the workflow, not the tools.
+#
+# Run from inside any checkout of the repo (main or another worktree):
+#   wt-new <name>
+# creates ~/Code/worktrees/<repo>/<name> on branch <name> (reusing the branch
+# if it already exists), copies the main checkout's untracked .env* files,
+# runs `npm install` if there's a package.json, and runs the repo's own
+# executable `.wt-setup` (passed the main checkout path as $1) so
+# repo-specific setup lives in the repo and wt-new stays repo-agnostic.
+# Prints the worktree path last. Remove with wt-done.
+#
+# WT_ROOT overrides the ~/Code/worktrees base (mainly for tests).
+set -u
+
+die() { echo "wt-new: $*" >&2; exit 1; }
+
+[ $# -eq 1 ] || die "usage: wt-new <name>"
+name="$1"
+case "$name" in ''|-*|*/*) die "bad worktree name '$name'" ;; esac
+
+common="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" \
+  || die "not inside a git repository"
+MAIN="$(dirname "$common")"
+repo="$(basename "$MAIN")"
+WT_ROOT="${WT_ROOT:-$HOME/Code/worktrees}"
+wt="$WT_ROOT/$repo/$name"
+
+[ -e "$wt" ] && die "$wt already exists"
+mkdir -p "$WT_ROOT/$repo" || die "cannot create $WT_ROOT/$repo"
+
+if git -C "$MAIN" show-ref --verify --quiet "refs/heads/$name"; then
+  echo "wt-new: branch '$name' exists — reusing it" >&2
+  git -C "$MAIN" worktree add "$wt" "$name" || die "git worktree add failed"
+else
+  git -C "$MAIN" worktree add "$wt" -b "$name" || die "git worktree add failed"
+fi
+
+# .env* files are untracked, so the worktree doesn't get them from git.
+for f in "$MAIN"/.env*; do
+  [ -f "$f" ] && { cp "$f" "$wt/" || die "copying $(basename "$f") failed"; }
+done
+
+if [ -f "$wt/package.json" ]; then
+  (cd "$wt" && npm install) || die "npm install failed in $wt"
+fi
+
+if [ -x "$MAIN/.wt-setup" ]; then
+  (cd "$wt" && "$MAIN/.wt-setup" "$MAIN") || die ".wt-setup failed"
+fi
+
+echo "$wt"

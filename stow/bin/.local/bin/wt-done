@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# wt-done — remove a wt-new worktree and its branch once the work is merged.
+#
+# Run from inside any checkout of the repo (main or another worktree):
+#   wt-done <name>
+# removes ~/Code/worktrees/<repo>/<name> and deletes branch <name>.
+# Refuses while the worktree's tracked tree is dirty or the branch is not
+# merged into the default branch — nothing is lost by accident.
+#
+# WT_ROOT overrides the ~/Code/worktrees base (mainly for tests).
+set -u
+
+die() { echo "wt-done: $*" >&2; exit 1; }
+
+[ $# -eq 1 ] || die "usage: wt-done <name>"
+name="$1"
+case "$name" in ''|-*|*/*) die "bad worktree name '$name'" ;; esac
+
+common="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" \
+  || die "not inside a git repository"
+MAIN="$(dirname "$common")"
+repo="$(basename "$MAIN")"
+WT_ROOT="${WT_ROOT:-$HOME/Code/worktrees}"
+wt="$WT_ROOT/$repo/$name"
+
+git -C "$MAIN" worktree list --porcelain | grep -Fxq "worktree $wt" \
+  || die "no worktree at $wt (git doesn't know it)"
+case "$PWD/" in "$wt"/*) die "you are inside $wt — cd out first" ;; esac
+
+current="$(git -C "$wt" branch --show-current)"
+[ "$current" = "$name" ] \
+  || die "worktree at $wt is on branch '${current:-<detached>}', not '$name'"
+
+[ -z "$(git -C "$wt" status --porcelain --untracked-files=no)" ] \
+  || die "tracked tree is dirty in $wt — commit or discard first"
+
+# Untracked non-ignored files other than the root .env* copies are work that
+# would be destroyed by the forced remove below — refuse.
+stray="$(git -C "$wt" status --porcelain --untracked-files=all \
+  | awk '$1 == "??" && $2 !~ /^"?\.env[^\/]*"?$/ { print $2 }')"
+[ -z "$stray" ] \
+  || die "untracked files in $wt would be lost — commit, move, or delete them first:
+$stray"
+
+# Default branch: origin/HEAD if known, else main, else master.
+if default="$(git -C "$MAIN" symbolic-ref --quiet --short refs/remotes/origin/HEAD)"; then
+  default="${default#origin/}"
+elif git -C "$MAIN" show-ref --verify --quiet refs/heads/main; then
+  default=main
+elif git -C "$MAIN" show-ref --verify --quiet refs/heads/master; then
+  default=master
+else
+  die "cannot determine the default branch"
+fi
+# Judge mergedness against origin/<default> when it exists — the local
+# default branch may be behind the merge.
+if git -C "$MAIN" show-ref --verify --quiet "refs/remotes/origin/$default"; then
+  merge_ref="refs/remotes/origin/$default"
+else
+  merge_ref="refs/heads/$default"
+fi
+git -C "$MAIN" merge-base --is-ancestor "refs/heads/$name" "$merge_ref" \
+  || die "branch '$name' is not merged into $default"
+
+# --force: wt-new copies untracked .env* files into the worktree, which a
+# plain remove refuses over; tracked cleanliness and absence of other
+# untracked files were checked above.
+git -C "$MAIN" worktree remove --force "$wt" || die "git worktree remove failed"
+# -D: mergedness was verified against $merge_ref above; -d could still refuse
+# when only origin has the merge.
+git -C "$MAIN" branch -D "$name" || die "git branch delete failed"
+
+echo "removed $wt and branch $name"
