@@ -64,6 +64,10 @@ alias c=claude
 alias t=tmux
 alias ta='tmux attach'
 alias tls='tmux ls'
+alias data='cd ~/Code/halvex/apps/data-pipeline/'
+alias web='cd ~/Code/halvex/apps/website/'
+# ssh
+alias peppar='ssh sebastian@46.59.71.73'
 # git
 alias g=git
 alias gs='git status -sb'
@@ -86,3 +90,8 @@ fi
 if [[ -f $ZSH_PLUGIN_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
   source $ZSH_PLUGIN_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 fi
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+command -v nvm >/dev/null && nvm use default --silent  # force default (node 22); overrides any stale inherited PATH
