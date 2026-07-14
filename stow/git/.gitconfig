@@ -6,7 +6,7 @@
 [init]
 	defaultBranch = main
 [pull]
-	rebase = true
+	rebase = false
 [rebase]
 	autostash = true
 	autosquash = true
@@ -48,3 +48,4 @@
 	ll = log --oneline --graph --decorate -20
 	lg = log --graph --abbrev-commit --decorate --all --format=format:'%C(bold blue)%h%C(reset) %C(dim white)%an%C(reset)%C(auto)%d%C(reset) %s %C(dim green)(%ar)%C(reset)'
 	aliases = config --get-regexp ^alias\\.
+	pr = pull --rebase
