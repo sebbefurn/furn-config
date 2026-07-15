@@ -12,7 +12,9 @@
 # runs `npm install` if there's a package.json, and runs the repo's own
 # executable `.wt-setup` (passed the main checkout path as $1) so
 # repo-specific setup lives in the repo and wt-new stays repo-agnostic.
-# Prints the worktree path last. Remove with wt-done.
+# All diagnostics and subcommand output go to stderr; stdout carries only the
+# worktree path, so callers can `cd "$(wt-new <name>)"` (the .zshrc wrapper
+# does exactly this). Remove with wt-done.
 #
 # WT_ROOT overrides the ~/Code/worktrees base (mainly for tests).
 set -u
@@ -35,9 +37,9 @@ mkdir -p "$WT_ROOT/$repo" || die "cannot create $WT_ROOT/$repo"
 
 if git -C "$MAIN" show-ref --verify --quiet "refs/heads/$name"; then
   echo "wt-new: branch '$name' exists — reusing it" >&2
-  git -C "$MAIN" worktree add "$wt" "$name" || die "git worktree add failed"
+  git -C "$MAIN" worktree add "$wt" "$name" >&2 || die "git worktree add failed"
 else
-  git -C "$MAIN" worktree add "$wt" -b "$name" || die "git worktree add failed"
+  git -C "$MAIN" worktree add "$wt" -b "$name" >&2 || die "git worktree add failed"
 fi
 
 # .env* files are untracked, so the worktree doesn't get them from git.
@@ -46,11 +48,11 @@ for f in "$MAIN"/.env*; do
 done
 
 if [ -f "$wt/package.json" ]; then
-  (cd "$wt" && npm install) || die "npm install failed in $wt"
+  (cd "$wt" && npm install >&2) || die "npm install failed in $wt"
 fi
 
 if [ -x "$MAIN/.wt-setup" ]; then
-  (cd "$wt" && "$MAIN/.wt-setup" "$MAIN") || die ".wt-setup failed"
+  (cd "$wt" && "$MAIN/.wt-setup" "$MAIN" >&2) || die ".wt-setup failed"
 fi
 
 echo "$wt"

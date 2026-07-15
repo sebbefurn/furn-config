@@ -80,6 +80,14 @@ alias gco='git checkout'
 alias gb='git branch'
 alias glg='git lg'
 
+# wt-new prints the new worktree path on stdout; wrap it so creating a tree
+# also drops us into it. `command` reaches the real script, not this function.
+wt-new() {
+  local wt
+  wt="$(command wt-new "$@")" || return
+  builtin cd -- "$wt"
+}
+
 # ---- Plugins (installed pinned by bootstrap.sh) ----
 ZSH_PLUGIN_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
 if [[ -f $ZSH_PLUGIN_DIR/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then

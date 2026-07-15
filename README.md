@@ -79,8 +79,7 @@ the global CLAUDE.md tells agents never to create or enter worktrees themselves.
 
 ```sh
 cd ~/Code/<repo>          # any checkout of the repo
-wt-new my-effort          # → ~/Code/worktrees/<repo>/my-effort on branch my-effort
-cd ~/Code/worktrees/<repo>/my-effort
+wt-new my-effort          # creates the tree AND cds into it (~/Code/worktrees/<repo>/my-effort)
 claude                    # or: overnight --account <name> <issues>
 ...                       # merge the branch when done
 wt-done my-effort         # removes worktree + branch
@@ -90,7 +89,9 @@ wt-done my-effort         # removes worktree + branch
   exists), copies the main checkout's untracked `.env*` files, runs
   `npm install` when there's a `package.json`, and runs the repo's executable
   `.wt-setup` (passed the main checkout path as `$1`) if present — so
-  repo-specific setup lives in each repo and `wt-new` stays repo-agnostic.
+  repo-specific setup lives in each repo and `wt-new` stays repo-agnostic. The
+  script prints the worktree path on stdout (all else goes to stderr); a `wt-new`
+  shell function in `.zshrc` wraps it to `cd` you into the new tree.
 - **`wt-done <name>`** removes the worktree and deletes the branch, refusing
   while the tracked tree is dirty or the branch is unmerged into the default
   branch.
