@@ -103,3 +103,9 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 command -v nvm >/dev/null && nvm use default --silent  # force default (node 22); overrides any stale inherited PATH
+
+# ---- Machine-local overrides (generated per profile by bootstrap.sh; not stowed) ----
+# Server-only runtime tweaks live here — e.g. the headless systemctl --user /
+# XDG_RUNTIME_DIR fix. Absent on the workstation, so nothing server-specific runs
+# on your personal machine. Sourced last so it can override anything above.
+[[ -r ~/.zshrc.local ]] && source ~/.zshrc.local

@@ -20,14 +20,17 @@ Two machine roles, chosen by an explicit flag:
 - **headless** (`--headless`) — a server you only reach over SSH. Skips the pieces
   that need a local display or physical keyboard: **kitty**, the **Nerd Font**,
   **keyd**, **wl-clipboard**, and **commit-signing enrollment**. zsh/tmux/vim/git/Claude
-  are identical on both.
+  are otherwise identical, bar two generated server-only overrides (`~/.tmux.local.conf`,
+  `~/.zshrc.local`): tmux prefix → `C-b` (its tmux nests inside the workstation's
+  `C-Space` tmux over SSH), and an `XDG_RUNTIME_DIR` export so `systemctl --user`
+  works in reattached-tmux shells.
 
 ## What you get
 
 | Tool | Highlights |
 |------|-----------|
 | **zsh** | login shell, vi-mode, autosuggestions + syntax-highlighting (pinned, no framework), git-aware prompt, auto-attaches tmux |
-| **tmux** | prefix `C-Space`, vi copy-mode, `\|`/`-` splits, TPM (sensible, yank, vim-tmux-navigator), gruvbox status |
+| **tmux** | prefix `C-Space` (`C-b` headless — nested tmux), vi copy-mode, `\|`/`-` splits, TPM (sensible, yank, vim-tmux-navigator), gruvbox status |
 | **vim** | stock vim, zero plugins (except vim-tmux-navigator), gruvbox, sane defaults |
 | **kitty** _(workstation)_ | JetBrainsMono Nerd Font, gruvbox dark (hard), minimal (tmux multiplexes) |
 | **keyd** _(workstation)_ | Caps Lock → Esc, universal (Wayland/X11/TTY) |
