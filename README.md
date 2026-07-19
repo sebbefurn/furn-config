@@ -45,8 +45,21 @@ Theme is **gruvbox dark (hard contrast)** across kitty, tmux, and vim.
 bootstrap.sh        # apt + keyd-from-source + fonts + stow + chsh + TPM
 stow/               # user configs, symlinked into $HOME by stow
 system/keyd/        # root-owned config, copied to /etc by bootstrap (sudo)
+test/               # repo guards (run ./test/<name>.sh)
 CONTEXT.md          # glossary
 ```
+
+## Tests
+
+`./test/writes-stay-in-home.sh` — a static guard that every tracked shell script
+only creates/modifies files under `$HOME`. It scans for filesystem writes
+(redirections, `cp`/`mv`/`ln`/`install`/`mkdir`/`rm`/`tee`/`sed -i`/…) whose
+target is a hard-coded absolute path, and fails on any not in a small reviewed
+allowlist. The **one** sanctioned out-of-`$HOME` write is keyd's `/etc/keyd`
+config (sudo, workstation only); adding another means editing `ALLOW` in the
+script — a deliberate, visible exception. It does *not* police system operations
+that aren't file writes (apt, `chsh`, `systemctl`), which are legitimate
+bootstrap steps behind `sudo`. Run `--selftest` to check the checker itself.
 
 ## Claude accounts
 
