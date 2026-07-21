@@ -160,7 +160,6 @@ backup_if_real .vimrc
 backup_if_real .gitconfig
 is_workstation && backup_if_real .config/kitty/kitty.conf
 backup_if_real .config/claude/settings.json
-backup_if_real .config/claude/CLAUDE.md
 backup_if_real .config/claude/accounts
 
 # ---------------------------------------------------------------------------
@@ -237,18 +236,22 @@ if [ -f "$HOME/.local/bin/cc" ] && [ ! -L "$HOME/.local/bin/cc" ]; then
   warn "backed up legacy ~/.local/bin/cc (superseded by ~/.local/claude-bin/cc)"
 fi
 
-# Per-account: config dir with the shared settings/CLAUDE.md linked in, plus
-# the command wrapper. All accounts share one settings.json by design — a
-# /config change in any account lands in the repo working tree, visibly.
+# Per-account: config dir with the shared settings linked in, plus the command
+# wrapper. All accounts share one settings.json by design — a /config change in
+# any account lands in the repo working tree, visibly. CLAUDE.md is deliberately
+# machine-local (never tracked/stowed): if ~/.config/claude/CLAUDE.md exists on
+# this box, link it into each account so they share it; otherwise skip it.
 mkdir -p "$HOME/.local/claude-bin"
 while read -r cmd account _; do
   case "$cmd" in ''|'#'*) continue ;; esac
   dir="$HOME/.claude-$account"
   mkdir -p "$dir"
-  for f in settings.json CLAUDE.md; do
-    backup_if_real ".claude-$account/$f"
-    ln -sfn "$HOME/.config/claude/$f" "$dir/$f"
-  done
+  backup_if_real ".claude-$account/settings.json"
+  ln -sfn "$HOME/.config/claude/settings.json" "$dir/settings.json"
+  if [ -e "$HOME/.config/claude/CLAUDE.md" ]; then
+    backup_if_real ".claude-$account/CLAUDE.md"
+    ln -sfn "$HOME/.config/claude/CLAUDE.md" "$dir/CLAUDE.md"
+  fi
   if [ -L "$dir/statusline.sh" ]; then
     rm "$dir/statusline.sh"   # superseded by ~/.local/bin/claude-statusline
   fi

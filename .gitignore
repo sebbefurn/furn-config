@@ -6,6 +6,9 @@ stow/vim/.vim/swap/
 # --- Claude Code: per-project local settings are never tracked ---
 **/.claude/settings.local.json
 
+# --- Claude Code: CLAUDE.md is machine-local, never tracked/stowed ---
+stow/claude/.config/claude/CLAUDE.md
+
 # --- Private keys must NEVER be committed ---
 *id_ed25519
 *id_rsa

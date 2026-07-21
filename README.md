@@ -35,7 +35,7 @@ Two machine roles, chosen by an explicit flag:
 | **kitty** _(workstation)_ | JetBrainsMono Nerd Font, gruvbox dark (hard), minimal (tmux multiplexes) |
 | **keyd** _(workstation)_ | Caps Lock → Esc, universal (Wayland/X11/TTY) |
 | **git/gh** | merge-pull (`git pr` rebases), curated aliases; SSH auth + SSH commit signing _(workstation)_ |
-| **Claude Code** | manifest-driven multi-account (`claude`, `cc`, …) with shared tracked `settings.json` + global `CLAUDE.md` (secrets excluded) |
+| **Claude Code** | manifest-driven multi-account (`claude`, `cc`, …) with shared tracked `settings.json`; `CLAUDE.md` is machine-local (never tracked) |
 
 Theme is **gruvbox dark (hard contrast)** across kitty, tmux, and vim.
 
@@ -78,10 +78,13 @@ dispatcher, which sets `CLAUDE_CONFIG_DIR` from the manifest and execs the
 real binary. The wrapper dir sits *ahead* of `~/.local/bin` on PATH because
 the Claude updater owns `~/.local/bin/claude` and rewrites it on every update.
 
-All accounts share the tracked `settings.json` and `CLAUDE.md`, symlinked
-into each account dir by `bootstrap.sh`; per-account divergence is
-unsupported by design. Tools that resolve the account themselves (like
-`overnight --account <name>`) bypass the wrappers.
+All accounts share the tracked `settings.json`, symlinked into each account
+dir by `bootstrap.sh`; per-account divergence is unsupported by design. A
+`CLAUDE.md` is deliberately **not** tracked or stowed — it is machine-local:
+drop one at `~/.config/claude/CLAUDE.md` and `bootstrap.sh` links it into each
+account dir; without one, accounts simply have no global `CLAUDE.md`. Tools
+that resolve the account themselves (like `overnight --account <name>`) bypass
+the wrappers.
 
 **Adding an account:** add a line to the manifest, re-run `./bootstrap.sh`,
 run the new command once and `/login`.
@@ -90,8 +93,9 @@ run the new command once and `/login`.
 
 Every parallel effort gets its own manually-created git worktree; every tool —
 `claude`, wayfinder sessions, `overnight` — runs plainly inside it with no
-tool-level isolation (no `claude --worktree`). The cwd *is* the isolation;
-the global CLAUDE.md tells agents never to create or enter worktrees themselves.
+tool-level isolation (no `claude --worktree`). The cwd *is* the isolation; a
+machine-local global CLAUDE.md tells agents never to create or enter worktrees
+themselves.
 
 ```sh
 cd ~/Code/<repo>          # any checkout of the repo
