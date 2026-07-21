@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
-# overnight — unattended sequential issue runner.
+# overnight — unattended sequential issue runner (rolling handoff chains).
 #
-# Runs a Claude agent per GitHub issue in the current project, gating each
-# issue on: agent exit 0, issue CLOSED, clean tracked tree, type-check, tests.
-# A failed or timed-out attempt is retried (up to MAX_ATTEMPTS) by a fresh agent
-# that picks up the previous one's unfinished work; only after the attempts are
-# exhausted does the queue halt, preserving everything for review.
+# Runs a CHAIN of Claude agents per GitHub issue in the current project. Each
+# agent ("link") either finishes the issue or winds down gracefully: past the
+# soft deadline a PostToolUse hook nags it after every tool call to commit
+# wip(#N) checkpoints, write a handoff note, and exit cleanly; a fresh
+# successor then picks up the handoff (plus the issue and git as ground truth).
+# The hard kill is a rarely-fired backstop, not the routine ending. Completion
+# is gated on: issue CLOSED, clean tracked tree, type-check, tests. A chain
+# halts on MAX_ATTEMPTS CONSECUTIVE failed links (the counter resets on every
+# successful handoff), on the per-issue wall-clock budget (a launch gate — the
+# last link may overshoot), or on two consecutive fast failures (systemic:
+# out of tokens, auth, environment). Everything is preserved for review.
 #
 # Operates on the CURRENT WORKING DIRECTORY (must be a git repo with a
 # package.json). Launch with:
@@ -17,12 +23,13 @@
 # would otherwise quietly bill whatever account happened to be ambient.
 set -u
 
-AGENT_TIMEOUT=60m
-# A single issue gets up to this many agent attempts. An attempt that times out,
-# exits nonzero, leaves the issue OPEN, or lands with a red gate is not fatal:
-# the same issue is relaunched with a fresh agent told to pick up the unfinished
-# work. Only after MAX_ATTEMPTS failed attempts does the queue halt.
-MAX_ATTEMPTS=3
+# ---- Chain tuning ----
+SOFT_DEADLINE_MIN=45  # nag stage 1 begins: finish only if imminent, else hand off
+ESCALATION_MIN=60     # nag stage 2 begins: hand off NOW, no finishing
+HARD_KILL_MIN=80      # per-link hard kill — backstop for agents that ignore the nags
+ISSUE_BUDGET_MIN=240  # per-issue wall clock; a LAUNCH GATE only (last link may overshoot)
+MAX_ATTEMPTS=5        # consecutive failed links halt the issue; resets on handoff/close
+FAST_FAIL_SECS=120    # two consecutive failures faster than this => systemic halt
 
 # Headless (`claude -p`) keeps waiting for background subagents after the model
 # ends its turn, up to this ceiling, before terminating the session. The default
@@ -32,8 +39,8 @@ MAX_ATTEMPTS=3
 export CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=900000
 
 usage() {
-  cat <<'EOF'
-usage: overnight --account <name> [--no-human] <issue|start-end> [...]
+  cat <<EOF
+usage: overnight --account <name> [--human] <issue|start-end> [...]
 
 Each positional argument is a single issue number or an inclusive range
 (end >= start). Any mix is allowed; the queue runs in the order given,
@@ -45,27 +52,37 @@ It is required unless CLAUDE_CONFIG_DIR is already set in the environment,
 in which case that dir is inherited. The resolved account's email is
 logged at pre-flight, before any agent runs.
 
---no-human runs fully autonomously: an agent never stops to ask for human
-input or leaves an issue OPEN pending a decision. On any ambiguity it reads
-the related and linked issues, infers the philosophy they express, and picks
-the best-fitting solution itself. Without this flag, an agent that is
-genuinely blocked may post a comment and leave the issue OPEN for review.
+By default agents run fully autonomously: they never stop to ask for human
+input or leave an issue OPEN pending a decision. On any ambiguity they read
+the related and linked issues, infer the philosophy those express, and pick
+the best-fitting solution themselves. With --human, an agent that is
+genuinely blocked may instead post a comment and leave the issue OPEN for
+review, which halts the queue.
 
-Each issue gets up to 3 agent attempts: an attempt that times out (60m),
-exits nonzero, leaves the issue OPEN, or lands with a red type-check/test
-gate is retried by a fresh agent that picks up the unfinished work. The
-queue halts only after all 3 attempts on an issue fail.
+Each issue is worked by a CHAIN of agents. A link works until it finishes
+or winds down: from ${SOFT_DEADLINE_MIN}m a hook nags it after every tool call to commit
+wip(#N) checkpoints, write a handoff note, and exit cleanly (from ${ESCALATION_MIN}m the
+nag forbids finishing); a fresh successor picks up the handoff. Handoffs
+are success and cost nothing. The ${HARD_KILL_MIN}m hard kill is a backstop for links
+that ignore the nags. A chain halts on ${MAX_ATTEMPTS} CONSECUTIVE failed links
+(crash, hard kill, red gates — counter resets on every clean handoff), on
+the ${ISSUE_BUDGET_MIN}m per-issue budget (checked before each launch; the last link may
+overshoot), or on two consecutive sub-${FAST_FAIL_SECS}s failures (systemic: out of
+tokens, auth, environment — not the issue's fault).
+
+Issue completion is gated on: issue CLOSED, clean tracked tree, green
+\`npm run type-check\` + \`npm test\`. Mid-chain wip commits are NOT gated.
 
 examples:
   overnight --account sebastian 327-334
-  overnight --account sebbe --no-human 1 2 4 10
+  overnight --account sebbe --human 1 2 4 10
   overnight --account sebastian 4-6 8-15 17 20-21
 
 Runs against the current directory: pre-flight requires a git repo with
 package.json, gh auth, claude on PATH, a logged-in account config dir, all
-issues OPEN, a clean tracked tree, and green `npm run type-check` +
-`npm test` before any agent starts.
-Logs land in ~/.local/state/overnight/<dir-name>/<timestamp>/.
+issues OPEN, a clean tracked tree, and green \`npm run type-check\` +
+\`npm test\` before any agent starts.
+Logs and handoff notes land in ~/.local/state/overnight/<dir-name>/<timestamp>/.
 EOF
 }
 
@@ -75,7 +92,7 @@ usage_die() { printf 'overnight: %s\n\n' "$*" >&2; usage >&2; exit 2; }
 [ $# -gt 0 ] || usage_die "no issues specified"
 
 ACCOUNT=""
-NO_HUMAN=0
+HUMAN=0
 POSITIONAL=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -84,7 +101,7 @@ while [ $# -gt 0 ]; do
       [ $# -ge 2 ] || usage_die "--account needs a value (an account name from ~/.config/claude/accounts)"
       ACCOUNT="$2"; shift 2 ;;
     --account=*) ACCOUNT="${1#*=}"; shift ;;
-    --no-human) NO_HUMAN=1; shift ;;
+    --human) HUMAN=1; shift ;;
     -*) usage_die "unknown option '$1'" ;;
     *) POSITIONAL+=("$1"); shift ;;
   esac
@@ -145,45 +162,117 @@ tracked_dirty() { [ -n "$(git status --porcelain --untracked-files=no)" ]; }
 issue_state() { gh issue view "$1" --json state -q .state; }
 issue_url() { gh issue view "$1" --json url -q .url; }
 
-agent_prompt() {
-  local n="$1" attempt="$2"
+# ---- Wind-down hook (generated per run) ----
+# A headless agent can't be messaged mid-run, but PostToolUse hooks can: past
+# the soft deadline this hook exits 2 with a nag on stderr, which the harness
+# feeds back to the model after EVERY tool call until the agent actually winds
+# down. Per-link parameters (start epoch, issue number, handoff path) arrive
+# via environment variables exported by the queue loop and inherited by the
+# agent process and its hooks. No matcher in the settings entry = all tools.
+HOOK_SCRIPT="$LOG_DIR/winddown-hook.sh"
+HOOK_SETTINGS="$LOG_DIR/hook-settings.json"
 
-  # Retry attempts (2..MAX_ATTEMPTS) lead with a pick-up preamble so the fresh
-  # agent builds on whatever the previous one left, rather than starting over.
-  if [ "$attempt" -gt 1 ]; then
+cat >"$HOOK_SCRIPT" <<EOF
+#!/usr/bin/env bash
+# Generated by overnight — PostToolUse two-stage wind-down nag.
+start="\${OVERNIGHT_LINK_START:-}"
+[ -n "\$start" ] || exit 0
+elapsed=\$(( \$(date +%s) - start ))
+[ "\$elapsed" -ge $(( SOFT_DEADLINE_MIN * 60 )) ] || exit 0
+mins=\$(( elapsed / 60 ))
+left=\$(( ($(( HARD_KILL_MIN * 60 )) - elapsed) / 60 ))
+n="\${OVERNIGHT_ISSUE:-?}"
+if [ "\$elapsed" -lt $(( ESCALATION_MIN * 60 )) ]; then
+  cat >&2 <<MSG
+[overnight wind-down] \${mins}m elapsed — past the ${SOFT_DEADLINE_MIN}m soft deadline (hard kill in ~\${left}m). If you can GENUINELY complete issue #\$n — every criterion met, full test suite green, commit, comment, close — within about $(( ESCALATION_MIN - SOFT_DEADLINE_MIN )) minutes, do it now. Otherwise STOP starting new work: commit coherent work as wip(#\$n) checkpoints, write your handoff note to \$OVERNIGHT_HANDOFF_PATH (done / remaining / key commits and files / decisions and why / gotchas / recommended next step), then end your turn. A handoff is success, not failure. If you are a subagent: never write the handoff — finish your delegated task promptly and return to the main agent.
+MSG
+else
+  cat >&2 <<MSG
+[overnight wind-down] \${mins}m elapsed — HAND OFF NOW. Do not attempt to finish issue #\$n. Commit your work as wip(#\$n) checkpoints, write the handoff note to \$OVERNIGHT_HANDOFF_PATH, and end your turn immediately — the hard kill lands in ~\${left}m and wastes an attempt. If you are a subagent: return your result to the main agent now; only the top-level agent writes the handoff.
+MSG
+fi
+exit 2
+EOF
+chmod +x "$HOOK_SCRIPT"
+
+cat >"$HOOK_SETTINGS" <<EOF
+{
+  "hooks": {
+    "PostToolUse": [
+      { "hooks": [ { "type": "command", "command": "$HOOK_SCRIPT" } ] }
+    ]
+  }
+}
+EOF
+
+# ---- Agent prompts ----
+# Three launch reasons, one prompt each:
+#   fresh    first link on an issue
+#   handoff  successor after a clean handoff (handoff note embedded verbatim)
+#   retry    recovery after a failed link (archaeology preamble; latest handoff
+#            embedded too if one exists, with a staleness caveat)
+# All variants share the chain framing, the task core, the completion rules,
+# and the headless/no-background-subagent rules.
+agent_prompt() {
+  local n="$1" reason="$2" handoff_file="$3" attempt="$4"
+
+  if [ "$reason" = "handoff" ]; then
     cat <<EOF
-You are picking up GitHub issue #$n from a previous agent that did NOT finish it — it timed out, exited early, or left the type-check/test suite red. This is attempt $attempt of $MAX_ATTEMPTS.
+You are picking up GitHub issue #$n from a previous agent that handed off cleanly mid-work. Its handoff note is below. Treat git history and the issue itself as ground truth — the handoff is a guide, not gospel. Expect wip(#$n) checkpoint commits (they may not have green tests); build on the existing work instead of redoing it.
+
+--- HANDOFF FROM PREVIOUS AGENT ---
+$(cat "$handoff_file")
+--- END HANDOFF ---
+
+EOF
+  elif [ "$reason" = "retry" ]; then
+    cat <<EOF
+You are picking up GitHub issue #$n from a previous agent that did NOT finish it — it crashed, was hard-killed, or left the type-check/test suite red. This is attempt $attempt of $MAX_ATTEMPTS.
 
 Before anything else, inspect the current state to see what was already done: run \`git log --oneline -20\`, \`git status\`, and \`gh issue view $n --comments\`. The previous agent may have committed partial work and even closed the issue while it was still incomplete or red. If the issue is CLOSED, reopen it with \`gh issue reopen $n\`. Build on the existing work instead of redoing it from scratch, then finish it correctly.
 
 EOF
+    if [ -n "$handoff_file" ] && [ -s "$handoff_file" ]; then
+      cat <<EOF
+The most recent handoff note from this issue's chain is below. It may predate the failed attempt — work may have happened after it was written — so verify it against git before trusting it.
+
+--- MOST RECENT HANDOFF ---
+$(cat "$handoff_file")
+--- END HANDOFF ---
+
+EOF
+    fi
   fi
 
   cat <<EOF
-You are running unattended overnight as part of an automated queue.
+You are running unattended overnight as one link in a chain of agents working sequentially on this issue. Finishing the issue yourself and handing off to a successor are BOTH success — never rush or skimp on work to avoid a handoff.
 
-Implement GitHub issue #$n using the /implement skill. Read the issue with: gh issue view $n. Verify every acceptance criterion is met, including full test suite and type-check green.
+Implement GitHub issue #$n using the /implement skill. Read the issue with: gh issue view $n — the issue is your primary source of truth. Verify every acceptance criterion is met, including full test suite and type-check green.
 
-When done: commit your work. Then — always, on every run, no matter what — run the FULL test suite yourself (npm test) after the commit and confirm it is green, to be certain the commit got everything correct. Only once the full suite passes, post a comment on issue #$n stating what action is required on prod, then close the issue. Closing the issue is the signal that unblocks the next queued issue — only close when genuinely complete and the full suite is green.
+Deadlines and handoff protocol: from $SOFT_DEADLINE_MIN minutes a wind-down notice will arrive after every tool call; at $HARD_KILL_MIN minutes the session is hard-killed, which wastes an attempt — never let it come to that. Work in committable increments from the start so winding down is always cheap. When told to wind down: finish-and-close only if that is genuinely imminent; otherwise commit coherent work as \`wip(#$n): ...\` checkpoints (checkpoints do NOT need green tests), write a handoff note for your successor to $OVERNIGHT_HANDOFF_PATH — what is done, what remains, key commits and files, decisions made and why, gotchas discovered, recommended next step — and end your turn. If a large discrete task (a code review, say) remains near the deadline, leave it to a fresh successor rather than starting it. Never create the handoff file when you are closing the issue — its existence tells the runner the issue is being handed off unfinished.
 
-You run headless: when you end a turn, the session is over. Never end a turn with a background subagent still running — the harness kills it and you never re-wake to finish, leaving the issue OPEN with work uncommitted and the whole queue halted. So run any subagent whose output the final gates depend on synchronously (run_in_background: false) and wait for it, and never delegate the terminal steps (final full test suite, commit, close) to a background subagent — do those yourself, in one active turn, only after every subagent has returned.
+When done for real: commit your work. Then — always, on every run, no matter what — run the FULL test suite yourself (npm test) after the commit and confirm it is green, to be certain the commit got everything correct. Only once the full suite passes, post a comment on issue #$n stating what action is required on prod, then close the issue. Closing the issue is the signal that unblocks the next queued issue — only close when genuinely complete and the full suite is green.
+
+You run headless: when you end a turn, the session is over. Never end a turn with a background subagent still running — the harness kills it and you never re-wake to finish, leaving the issue OPEN with work uncommitted. So run any subagent whose output the final gates depend on synchronously (run_in_background: false) and wait for it, and never delegate the terminal steps (final full test suite, commit, close, or the handoff note) to a background subagent — do those yourself, in one active turn, only after every subagent has returned.
 EOF
 
-  if [ "$NO_HUMAN" -eq 1 ]; then
+  if [ "$HUMAN" -eq 1 ]; then
     cat <<EOF
 
-No human is available and you must NEVER stop to ask for input or leave the issue OPEN pending a human decision. Whenever you hit ambiguity or a design choice, ground it in the surrounding work: read this issue's linked/referenced issues, run \`gh issue list\` and \`gh issue view\` on the issues it mentions or that mention it, and infer the philosophy and direction those issues express. Choose the solution that best fits that philosophy, then decide and proceed. There is no escape hatch — finish the work.
+No human is available to answer questions mid-run, so never ask — decide and proceed. Only if you are genuinely blocked and cannot proceed without human input: post a comment on issue #$n explaining exactly what you need and why you stopped, leave the issue OPEN, do NOT write a handoff file, and end your session. Do not close an issue whose work is incomplete.
 EOF
   else
     cat <<EOF
 
-No human is available to answer questions mid-run, so never ask — decide and proceed. Only if you are genuinely blocked and cannot proceed without human input: post a comment on issue #$n explaining exactly what you need and why you stopped, leave the issue OPEN, and end your session. Do not close an issue whose work is incomplete.
+No human is available and you must NEVER stop to ask for input or leave the issue OPEN pending a human decision. Whenever you hit ambiguity or a design choice, ground it in the surrounding work: read this issue's linked/referenced issues, run \`gh issue list\` and \`gh issue view\` on the issues it mentions or that mention it, and infer the philosophy and direction those issues express. Choose the solution that best fits that philosophy, then decide and proceed. If the work truly cannot finish in your session, hand off — the chain continues.
 EOF
   fi
 }
 
 log "logs: $LOG_DIR"
 log "=== overnight run starting in $APP_DIR: issues ${ISSUES[*]} ==="
+[ "$HUMAN" -eq 1 ] && log "mode: --human (a blocked agent may leave an issue OPEN and halt the queue)" \
+                   || log "mode: autonomous (agents decide everything themselves)"
 
 # ---- Pre-flight ----
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "pre-flight: $APP_DIR is not inside a git repository"
@@ -224,68 +313,107 @@ npm test >"$LOG_DIR/preflight-test.log" 2>&1 || die "pre-flight: baseline tests 
 log "pre-flight passed"
 
 # ---- Queue ----
-# Each issue gets up to MAX_ATTEMPTS agent attempts. Any attempt that fails a
-# gate (timeout, nonzero exit, issue left OPEN, dirty tree, red type-check/test)
-# is not fatal on its own: a fresh agent is relaunched to pick up the unfinished
-# work. The queue halts only when an issue exhausts all its attempts.
+# Per issue: launch links until the issue closes with green gates. Exit
+# classification, in order: done (CLOSED + green gates) > planned handoff
+# (clean exit + handoff note at THIS link's path) > blocked-for-human
+# (--human only) > failure. A handoff resets the consecutive-failure counter;
+# a failure bumps it and relaunches with the archaeology prompt. The budget is
+# checked before each launch, never mid-link.
 for n in "${ISSUES[@]}"; do
+  issue_start=$(date +%s)
+  link=0
+  consec_fail=0
+  fast_fail=0
+  last_handoff=""
+  reason="fresh"
   issue_done=0
-  for ((attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)); do
-    if [ "$attempt" -eq 1 ]; then
-      log "--- issue #$n: launching agent (attempt $attempt/$MAX_ATTEMPTS, cap $AGENT_TIMEOUT) ---"
-    else
-      log "--- issue #$n: retry — fresh agent picks up unfinished work (attempt $attempt/$MAX_ATTEMPTS, cap $AGENT_TIMEOUT) ---"
+
+  while :; do
+    if [ $(( $(date +%s) - issue_start )) -ge $(( ISSUE_BUDGET_MIN * 60 )) ]; then
+      die "issue #$n: ${ISSUE_BUDGET_MIN}m budget exhausted after $link links${last_handoff:+ — latest handoff: $(basename "$last_handoff")}"
     fi
 
-    logfile="$LOG_DIR/issue-$n-attempt-$attempt.log"
-    timeout --kill-after=2m "$AGENT_TIMEOUT" \
-      "$CLAUDE_BIN" -p "$(agent_prompt "$n" "$attempt")" --dangerously-skip-permissions \
+    link=$((link + 1))
+    handoff_path="$LOG_DIR/issue-$n-link-$link-handoff.md"
+    logfile="$LOG_DIR/issue-$n-link-$link.log"
+
+    case "$reason" in
+      fresh)   log "--- issue #$n link $link: fresh agent (soft ${SOFT_DEADLINE_MIN}m, hard ${HARD_KILL_MIN}m) ---" ;;
+      handoff) log "--- issue #$n link $link: successor picks up $(basename "$last_handoff") ---" ;;
+      retry)   log "--- issue #$n link $link: retry after failure ($consec_fail/$MAX_ATTEMPTS consecutive) ---" ;;
+    esac
+
+    export OVERNIGHT_LINK_START="$(date +%s)"
+    export OVERNIGHT_ISSUE="$n"
+    export OVERNIGHT_HANDOFF_PATH="$handoff_path"
+
+    link_t0=$(date +%s)
+    timeout --kill-after=2m "${HARD_KILL_MIN}m" \
+      "$CLAUDE_BIN" -p "$(agent_prompt "$n" "$reason" "$last_handoff" "$((consec_fail + 1))")" \
+      --dangerously-skip-permissions --settings "$HOOK_SETTINGS" \
       >"$logfile" 2>&1 </dev/null
     rc=$?
+    link_secs=$(( $(date +%s) - link_t0 ))
 
-    if [ "$rc" -eq 124 ]; then
-      log "issue #$n: attempt $attempt hit the $AGENT_TIMEOUT timeout (see $(basename "$logfile"); tree may hold partial work)"
-      continue
-    fi
-    if [ "$rc" -ne 0 ]; then
-      log "issue #$n: attempt $attempt — claude exited $rc (see $(basename "$logfile"))"
-      continue
-    fi
-
-    state="$(issue_state "$n")" || die "issue #$n: cannot read issue state after agent exit"
-    if [ "$state" != "CLOSED" ]; then
-      # In --no-human mode an agent must never leave an issue OPEN, so treat it
-      # as unfinished work and retry. Without the flag, an OPEN issue means the
-      # agent deliberately stopped for human input — halt so a human can look.
-      if [ "$NO_HUMAN" -eq 1 ]; then
-        log "issue #$n: attempt $attempt left the issue OPEN (read its issue comment and $(basename "$logfile"))"
+    if [ "$rc" -eq 0 ]; then
+      state="$(issue_state "$n")" || die "issue #$n: cannot read issue state after link $link"
+      if [ "$state" = "CLOSED" ]; then
+        if tracked_dirty; then
+          log "issue #$n link $link: closed the issue but left the tracked tree dirty"
+        else
+          log "issue #$n link $link: gate type-check"
+          if ! npm run type-check >"$LOG_DIR/issue-$n-link-$link-gate-typecheck.log" 2>&1; then
+            log "issue #$n link $link: type-check red after close (see issue-$n-link-$link-gate-typecheck.log)"
+          else
+            log "issue #$n link $link: gate full test suite"
+            if ! npm test >"$LOG_DIR/issue-$n-link-$link-gate-test.log" 2>&1; then
+              log "issue #$n link $link: tests red after close (see issue-$n-link-$link-gate-test.log)"
+            else
+              log "issue #$n: complete on link $link, all gates green — $(git log -1 --oneline)"
+              issue_done=1
+              break
+            fi
+          fi
+        fi
+      elif [ -s "$handoff_path" ]; then
+        log "issue #$n link $link: handed off after $((link_secs / 60))m ($(basename "$handoff_path"))"
+        last_handoff="$handoff_path"
+        consec_fail=0
+        fast_fail=0
+        reason="handoff"
         continue
+      elif [ "$HUMAN" -eq 1 ]; then
+        die "issue #$n: left OPEN by link $link for human input — read its issue comment and $(basename "$logfile")"
+      else
+        log "issue #$n link $link: exited cleanly but left the issue OPEN with no handoff (see $(basename "$logfile"))"
       fi
-      die "issue #$n: left OPEN by agent — read its issue comment and $(basename "$logfile")"
+    elif [ "$rc" -eq 124 ]; then
+      log "issue #$n link $link: hit the ${HARD_KILL_MIN}m hard kill — wind-down ignored (see $(basename "$logfile"); tree may hold partial work)"
+    else
+      log "issue #$n link $link: claude exited $rc after $((link_secs / 60))m (see $(basename "$logfile"))"
     fi
 
-    if tracked_dirty; then
-      log "issue #$n: attempt $attempt closed the issue but left the tracked tree dirty"
-      continue
+    # -- this link failed --
+    # A handoff written before the death still informs the retry prompt.
+    [ -s "$handoff_path" ] && last_handoff="$handoff_path"
+
+    if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ] && [ "$link_secs" -lt "$FAST_FAIL_SECS" ]; then
+      fast_fail=$((fast_fail + 1))
+      if [ "$fast_fail" -ge 2 ]; then
+        die "issue #$n: two consecutive links died within ${FAST_FAIL_SECS}s — systemic failure (out of tokens? auth? environment?), not an issue failure. See $(basename "$logfile")."
+      fi
+    else
+      fast_fail=0
     fi
 
-    log "issue #$n: attempt $attempt gate type-check"
-    if ! npm run type-check >"$LOG_DIR/issue-$n-attempt-$attempt-gate-typecheck.log" 2>&1; then
-      log "issue #$n: attempt $attempt — type-check red after close (see issue-$n-attempt-$attempt-gate-typecheck.log)"
-      continue
+    consec_fail=$((consec_fail + 1))
+    if [ "$consec_fail" -ge "$MAX_ATTEMPTS" ]; then
+      die "issue #$n: $MAX_ATTEMPTS consecutive failed links — read the issue comments and the issue-$n-link-*.log files"
     fi
-    log "issue #$n: attempt $attempt gate full test suite"
-    if ! npm test >"$LOG_DIR/issue-$n-attempt-$attempt-gate-test.log" 2>&1; then
-      log "issue #$n: attempt $attempt — tests red after close (see issue-$n-attempt-$attempt-gate-test.log)"
-      continue
-    fi
-
-    log "issue #$n: all gates green on attempt $attempt — $(git log -1 --oneline)"
-    issue_done=1
-    break
+    reason="retry"
   done
 
-  [ "$issue_done" -eq 1 ] || die "issue #$n: still not complete after $MAX_ATTEMPTS attempts — read its issue comments and the issue-$n-attempt-*.log files"
+  [ "$issue_done" -eq 1 ] || die "issue #$n: chain ended without completion"
 done
 
 log "=== overnight run complete: all ${#ISSUES[@]} issues closed, tests green. Review commits, then push. ==="
