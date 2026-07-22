@@ -1,0 +1,24 @@
+[Unit]
+Description=dream — one research dream per qualifying fire (campaign runner from furn-config)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# %h/.npm-global/bin: npm/npx/claude; %h/.local/bin: dream + uvx
+Environment=PATH=%h/.npm-global/bin:%h/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=%h/.local/bin/dream run
+# One dream = one bounded Workflow + reads + one write + an artifact publish. The
+# runner caps the inner claude -p via timeout(1) (campaign.json timeout_seconds,
+# 7200s for halvex); this is that plus margin.
+TimeoutStartSec=8000
+# On peppar the dream fans out a Workflow (subagents) while the halvex batch
+# daemon runs. Contain it so the overlap can't OOM the box; MemoryHigh throttles
+# before the MemoryMax kill.
+MemoryAccounting=yes
+MemoryHigh=3.5G
+MemoryMax=5G
+OOMPolicy=continue
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,11 @@
+{
+  "_comment": "The halvex dream campaign. `target` is the repo the dreams run against (cwd of each claude -p; override per-machine with DREAM_TARGET if the checkout lives elsewhere). `scratch_dir`/`write_root` are relative to target: dreams write results into scratch_dir and the write-jail hook confines ALL writes to write_root. `env_file` (relative to target) is greped for DISCORD_DREAMS_WEBHOOK_URL. `accounts` is the strict alternation order for timer-driven runs; `dream loop --account X` overrides it. `default_interval_hours` seeds the mutable interval (`dream interval N`).",
+  "target": "~/Code/halvex/apps/data-pipeline",
+  "scratch_dir": "data/scratch/dreams",
+  "write_root": "data/scratch",
+  "env_file": ".env.local",
+  "model": "claude-fable-5",
+  "accounts": ["sebastian", "sebbe"],
+  "default_interval_hours": 2,
+  "timeout_seconds": 7200
+}

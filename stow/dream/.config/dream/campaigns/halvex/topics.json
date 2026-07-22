@@ -1,0 +1,1331 @@
+{
+  "_comment": "Canonical catalog for the halvex dream campaign: 204 topics, 17 families. A-H are the original extraction-method topics; I-Q are technology-first topics (each 'hint' is a starting mapping hypothesis from the scouting run, for the dream to confirm, refute, or transcend); R-Y are infrastructure/product/practice topics. Families K/L/M (discovery sensors, standing queries, crawling) carry weight 2: the seeder's weighted round-robin gives them two slots per round so the owner's priority areas drain about twice as fast early in the campaign.",
+  "families": {
+    "A": {
+      "name": "Learning & labeling without hand-labels",
+      "weight": 1
+    },
+    "B": {
+      "name": "Entity resolution & linking",
+      "weight": 1
+    },
+    "C": {
+      "name": "Document & layout intelligence",
+      "weight": 1
+    },
+    "D": {
+      "name": "Extraction method & structure",
+      "weight": 1
+    },
+    "E": {
+      "name": "Correctness, uncertainty, verification",
+      "weight": 1
+    },
+    "F": {
+      "name": "Constraints, provenance, semantics",
+      "weight": 1
+    },
+    "G": {
+      "name": "Sources, drift, architecture",
+      "weight": 1
+    },
+    "H": {
+      "name": "Cost & scaling",
+      "weight": 1
+    },
+    "I": {
+      "name": "Agent workflow & Claude operations",
+      "weight": 1
+    },
+    "J": {
+      "name": "LLM extraction efficiency & accuracy",
+      "weight": 1
+    },
+    "K": {
+      "name": "Discovery sensors & early-warning feeds",
+      "weight": 2
+    },
+    "L": {
+      "name": "Standing queries, triage & candidate ranking",
+      "weight": 2
+    },
+    "M": {
+      "name": "Crawling & acquisition infrastructure",
+      "weight": 2
+    },
+    "N": {
+      "name": "SQLite-centric data platform",
+      "weight": 1
+    },
+    "O": {
+      "name": "Pipeline engineering & data quality",
+      "weight": 1
+    },
+    "P": {
+      "name": "Fact modeling & financial data standards",
+      "weight": 1
+    },
+    "Q": {
+      "name": "Provenance, evidence & on-chain verification",
+      "weight": 1
+    },
+    "R": {
+      "name": "Market & reference data on a budget",
+      "weight": 1
+    },
+    "S": {
+      "name": "Verification practice from other disciplines",
+      "weight": 1
+    },
+    "T": {
+      "name": "Evaluation & QA infrastructure",
+      "weight": 1
+    },
+    "U": {
+      "name": "LLM adaptation & optimization",
+      "weight": 1
+    },
+    "V": {
+      "name": "Human-in-the-loop tooling",
+      "weight": 1
+    },
+    "W": {
+      "name": "Data model & storage",
+      "weight": 1
+    },
+    "X": {
+      "name": "Product & presentation",
+      "weight": 1
+    },
+    "Y": {
+      "name": "Ops & self-healing",
+      "weight": 1
+    }
+  },
+  "topics": [
+    {
+      "family": "A",
+      "slug": "weak-supervision",
+      "title": "Weak supervision / programmatic labeling (Snorkel labeling functions over filings)",
+      "hint": ""
+    },
+    {
+      "family": "A",
+      "slug": "distant-supervision",
+      "title": "Distant supervision for relation extraction",
+      "hint": ""
+    },
+    {
+      "family": "A",
+      "slug": "self-training-bootstrap",
+      "title": "Self-training / bootstrap loops (Hearst → DIPRE lineage)",
+      "hint": ""
+    },
+    {
+      "family": "A",
+      "slug": "active-learning-verification",
+      "title": "Active learning for verification queues (which fact to check next)",
+      "hint": ""
+    },
+    {
+      "family": "A",
+      "slug": "rule-learning-ilp",
+      "title": "Rule-learning / inductive logic programming for extraction rules",
+      "hint": ""
+    },
+    {
+      "family": "A",
+      "slug": "synthetic-training-data",
+      "title": "Synthetic data generation for extractor training/eval",
+      "hint": ""
+    },
+    {
+      "family": "B",
+      "slug": "probabilistic-record-linkage",
+      "title": "Probabilistic record linkage (Fellegi–Sunter and successors)",
+      "hint": ""
+    },
+    {
+      "family": "B",
+      "slug": "dedupe-blocking",
+      "title": "Dedupe/blocking at scale (sorted-neighborhood, LSH candidate pairs)",
+      "hint": ""
+    },
+    {
+      "family": "B",
+      "slug": "ner-authority-linking",
+      "title": "NER + linking to authority files (issuer → CIK/LEI/ticker)",
+      "hint": ""
+    },
+    {
+      "family": "B",
+      "slug": "cross-doc-coreference",
+      "title": "Cross-document coreference (same entity/deal across filings)",
+      "hint": ""
+    },
+    {
+      "family": "B",
+      "slug": "transliteration-name-norm",
+      "title": "Transliteration & name normalization across scripts",
+      "hint": ""
+    },
+    {
+      "family": "B",
+      "slug": "reconciliation-backbone",
+      "title": "Wikidata/OpenRefine reconciliation as a backbone",
+      "hint": ""
+    },
+    {
+      "family": "C",
+      "slug": "table-structure-recognition",
+      "title": "Document-AI table structure recognition",
+      "hint": ""
+    },
+    {
+      "family": "C",
+      "slug": "ocr-layout-analysis",
+      "title": "OCR pipelines & layout analysis for scanned disclosures",
+      "hint": ""
+    },
+    {
+      "family": "C",
+      "slug": "document-zoning",
+      "title": "Segmentation/zoning of semi-structured documents",
+      "hint": ""
+    },
+    {
+      "family": "C",
+      "slug": "visual-feature-heuristics",
+      "title": "Font/visual-feature heuristics (bold = defined term)",
+      "hint": ""
+    },
+    {
+      "family": "C",
+      "slug": "reference-parsing-grobid",
+      "title": "Citation/reference parsing (GROBID/AnyStyle architecture)",
+      "hint": ""
+    },
+    {
+      "family": "C",
+      "slug": "table-understanding",
+      "title": "Table understanding (column typing, header inference)",
+      "hint": ""
+    },
+    {
+      "family": "D",
+      "slug": "wrapper-induction",
+      "title": "Wrapper induction & program synthesis for scrapers",
+      "hint": ""
+    },
+    {
+      "family": "D",
+      "slug": "open-information-extraction",
+      "title": "Open information extraction (schema-free triples → normalize)",
+      "hint": ""
+    },
+    {
+      "family": "D",
+      "slug": "structured-prediction-crf",
+      "title": "Structured prediction (CRFs) vs prompt-based extraction",
+      "hint": ""
+    },
+    {
+      "family": "D",
+      "slug": "declarative-extraction-langs",
+      "title": "Grammar-driven/declarative extraction languages (JAPE successors)",
+      "hint": ""
+    },
+    {
+      "family": "D",
+      "slug": "constrained-decoding",
+      "title": "Constrained decoding / grammar-constrained generation for valid rows",
+      "hint": ""
+    },
+    {
+      "family": "D",
+      "slug": "event-extraction",
+      "title": "Event extraction & event coreference (corporate events)",
+      "hint": ""
+    },
+    {
+      "family": "D",
+      "slug": "slot-filling-kbp",
+      "title": "Slot filling (TAC-KBP knowledge-base-population methodology)",
+      "hint": ""
+    },
+    {
+      "family": "D",
+      "slug": "temporal-extraction",
+      "title": "Temporal information extraction (event time vs report time)",
+      "hint": ""
+    },
+    {
+      "family": "E",
+      "slug": "conformal-prediction",
+      "title": "Conformal prediction / uncertainty quantification on fields",
+      "hint": ""
+    },
+    {
+      "family": "E",
+      "slug": "truth-discovery",
+      "title": "Truth discovery / multi-source conflict resolution",
+      "hint": ""
+    },
+    {
+      "family": "E",
+      "slug": "data-fusion-source-trust",
+      "title": "Data fusion & source-trust scoring (Bleiholder/Naumann)",
+      "hint": ""
+    },
+    {
+      "family": "E",
+      "slug": "claim-verification-fever",
+      "title": "Fact/claim verification pipelines (FEVER lineage)",
+      "hint": ""
+    },
+    {
+      "family": "E",
+      "slug": "textual-entailment-evidence",
+      "title": "Textual entailment for evidence-support checking",
+      "hint": ""
+    },
+    {
+      "family": "E",
+      "slug": "self-consistency-sampling",
+      "title": "Self-consistency / verification-by-sampling",
+      "hint": ""
+    },
+    {
+      "family": "E",
+      "slug": "probabilistic-databases",
+      "title": "Bayesian data cleaning / probabilistic databases",
+      "hint": ""
+    },
+    {
+      "family": "E",
+      "slug": "extraction-metrics",
+      "title": "Extraction evaluation metrics beyond F1 (slot error rate)",
+      "hint": ""
+    },
+    {
+      "family": "F",
+      "slug": "constraint-joint-inference",
+      "title": "Constraint-based joint inference (extractions must satisfy DB invariants)",
+      "hint": ""
+    },
+    {
+      "family": "F",
+      "slug": "provenance-carrying-extraction",
+      "title": "Provenance-carrying extraction (every value ships its source span; PROV)",
+      "hint": ""
+    },
+    {
+      "family": "F",
+      "slug": "schema-matching-ontology-align",
+      "title": "Schema matching & ontology alignment",
+      "hint": ""
+    },
+    {
+      "family": "F",
+      "slug": "shacl-shape-validation",
+      "title": "RDF/SHACL shape validation as an extraction contract",
+      "hint": ""
+    },
+    {
+      "family": "F",
+      "slug": "knowledge-graph-construction",
+      "title": "Knowledge graph construction pipelines (Knowledge Vault lineage)",
+      "hint": ""
+    },
+    {
+      "family": "F",
+      "slug": "datalog-deductive-reasoning",
+      "title": "Datalog / deductive reasoning over extracted facts",
+      "hint": ""
+    },
+    {
+      "family": "F",
+      "slug": "structured-data-on-web",
+      "title": "Schema.org / microdata structured-data-on-the-web extraction",
+      "hint": ""
+    },
+    {
+      "family": "G",
+      "slug": "scraper-robustness",
+      "title": "Web scraping robustness (anti-fragile selectors, drift detection)",
+      "hint": ""
+    },
+    {
+      "family": "G",
+      "slug": "headless-rendering-robustness",
+      "title": "Anti-bot / headless-browser rendering robustness (puppeteer)",
+      "hint": ""
+    },
+    {
+      "family": "G",
+      "slug": "change-data-capture",
+      "title": "Change data capture (CDC) for source monitoring",
+      "hint": ""
+    },
+    {
+      "family": "G",
+      "slug": "web-archiving-content-drift",
+      "title": "Web archiving & content drift (Memento/timegates)",
+      "hint": ""
+    },
+    {
+      "family": "G",
+      "slug": "streaming-incremental-extraction",
+      "title": "Streaming/incremental extraction (extract-on-arrival)",
+      "hint": ""
+    },
+    {
+      "family": "G",
+      "slug": "diff-based-extraction",
+      "title": "Diff-based extraction (change detection between successive filings)",
+      "hint": ""
+    },
+    {
+      "family": "G",
+      "slug": "retrieval-augmented-extraction",
+      "title": "Retrieval-augmented extraction (retrieve exemplars at extraction time)",
+      "hint": ""
+    },
+    {
+      "family": "G",
+      "slug": "multi-agent-extraction",
+      "title": "Multi-agent extraction (specialist extractors + reconciler)",
+      "hint": ""
+    },
+    {
+      "family": "H",
+      "slug": "extraction-cost-cascades",
+      "title": "Extraction cost cascades (cheap model first, expensive on disagreement)",
+      "hint": ""
+    },
+    {
+      "family": "H",
+      "slug": "cost-aware-llm-routing",
+      "title": "Cost-aware LLM routing / model cascades",
+      "hint": ""
+    },
+    {
+      "family": "H",
+      "slug": "test-time-compute-scaling",
+      "title": "Test-time compute scaling (N-sample voting, verification passes)",
+      "hint": ""
+    },
+    {
+      "family": "H",
+      "slug": "multilingual-extraction",
+      "title": "Multilingual/cross-lingual extraction (EDINET/Japanese filings)",
+      "hint": ""
+    },
+    {
+      "family": "H",
+      "slug": "xbrl-structured-reporting",
+      "title": "XBRL & structured regulatory reporting (when the source is already structured)",
+      "hint": ""
+    },
+    {
+      "family": "I",
+      "slug": "mcp-servers",
+      "title": "Model Context Protocol servers (typed tool/data plane for agents)",
+      "hint": "Wrapping monitor.db queries and EDGAR/EDINET/DART fetchers as MCP servers gives every Halvex extraction, dream, and dev agent one vetted, permissioned interface instead of ad-hoc bash-and-SQLite access."
+    },
+    {
+      "family": "I",
+      "slug": "agent-skills",
+      "title": "Agent Skills standard (SKILL.md packaged agent know-how)",
+      "hint": "Per-source tribal knowledge (EDINET quirks, DART auth, TDnet reading, MFN parsing) codified as versioned skills makes every spawned extraction agent consistent and reviewable across unattended runs."
+    },
+    {
+      "family": "I",
+      "slug": "agent-sandbox-runtime",
+      "title": "Kernel-primitive agent sandboxing (Landlock/bubblewrap least-privilege via @anthropic-ai/sandbox-runtime)",
+      "hint": "Dream runs and scraper agents fetching untrusted international IR pages could run under policies limited to monitor.db and whitelisted hosts, letting the owner raise autonomy without risking the canonical database."
+    },
+    {
+      "family": "I",
+      "slug": "durable-execution",
+      "title": "Durable execution engines (DBOS/Restate/Temporal checkpointed crash-resumable workflows)",
+      "hint": "Multi-step extraction jobs under systemd timers become exactly-once and crash-resumable, so a mid-run API failure never loses or double-writes facts nor re-pays for completed LLM steps."
+    },
+    {
+      "family": "I",
+      "slug": "beads-agent-memory",
+      "title": "Beads (git-backed issue-graph memory for coding agents)",
+      "hint": "Dream runs could log leads, scraper breakages, and follow-ups as dependency-linked beads that the next Claude session queries instead of re-discovering state from markdown sprawl."
+    },
+    {
+      "family": "I",
+      "slug": "ralph-loop",
+      "title": "Ralph technique (spec-anchored agent-in-a-while-loop with fresh context)",
+      "hint": "Halvex's dream-runner is structurally a Ralph loop, so the technique's conventions (fresh-context idempotency, progress ledgers, guardrail files) directly harden dream-runner.sh/queue.py."
+    },
+    {
+      "family": "I",
+      "slug": "llm-record-replay",
+      "title": "Decision-level LLM record/replay (VCR-cassette regression testing of agent trajectories)",
+      "hint": "Recording extraction-agent trajectories on known filings and replaying them deterministically gives zero-API-cost regression tests whenever prompts, parsers, or pipeline code change."
+    },
+    {
+      "family": "I",
+      "slug": "otel-genai-semconv",
+      "title": "OpenTelemetry GenAI semantic conventions (standardized tracing of LLM/agent runs)",
+      "hint": "Standard gen_ai spans across the extraction and dream pipelines turn debugging a wrong fact in monitor.db from log-grepping into a trace query pinpointing the document, prompt, and tool call responsible."
+    },
+    {
+      "family": "I",
+      "slug": "inspect-ai-evals",
+      "title": "Inspect AI (trajectory-level agent evaluation framework)",
+      "hint": "Scoring whole extraction trajectories — right filing fetched, right tool sequence, number grounded in the document — reveals where agents fail procedurally, not just in final answers."
+    },
+    {
+      "family": "I",
+      "slug": "spec-driven-dev",
+      "title": "Spec-driven development toolchains (OpenSpec/Spec Kit repo-resident specs as source of truth)",
+      "hint": "Driving new source adapters and schema changes through version-controlled specs suits the unattended-dream workflow where the spec is the durable artifact the human reviews."
+    },
+    {
+      "family": "I",
+      "slug": "graphiti-temporal-kg",
+      "title": "Graphiti-style bi-temporal knowledge-graph agent memory (valid-time plus transaction-time fact edges)",
+      "hint": "Holdings facts are inherently bi-temporal, so a Graphiti-style layer lets agents recall what was known when, catch contradictions across filings, and accumulate weak discovery signals across dream runs."
+    },
+    {
+      "family": "I",
+      "slug": "computer-use-agents",
+      "title": "VLM computer-use browser agents (screenshot-and-click operation of UIs without APIs)",
+      "hint": "JS-heavy or form-gated IR portals of small international issuers could be periodically visited by a computer-use agent to spot new bitcoin-treasury disclosures no feed covers."
+    },
+    {
+      "family": "I",
+      "slug": "open-deep-research",
+      "title": "Open deep-research harnesses (plan-search-fetch-verify loops producing cited reports)",
+      "hint": "A scheduled harness running queries like 'company adds bitcoin to treasury' across non-English press could systematically surface new treasury companies earlier than feed-based monitoring."
+    },
+    {
+      "family": "J",
+      "slug": "baml-sap",
+      "title": "BAML schema-aligned parsing (typed LLM-function DSL with output repair)",
+      "hint": "Declaring fact schemas (holdings, dates, units) once as typed, unit-tested LLM functions yields robust parses even from cheap models, cutting retries and JSON-mangling bugs."
+    },
+    {
+      "family": "J",
+      "slug": "diffusion-llms",
+      "title": "Text diffusion LLMs (parallel denoising decoders with 5-10x throughput)",
+      "hint": "High-volume low-difficulty triage of thousands of news items and filings could move to diffusion models for order-of-magnitude cheaper and faster screening."
+    },
+    {
+      "family": "J",
+      "slug": "llmlingua-compression",
+      "title": "LLMLingua prompt compression (task-preserving token pruning up to 20x)",
+      "hint": "Compressing long filings and news bundles before extraction calls cuts per-document token cost without the accuracy loss of naive truncation or chunking."
+    },
+    {
+      "family": "J",
+      "slug": "semantic-entropy",
+      "title": "Semantic entropy probes (meaning-level uncertainty detection of confabulations)",
+      "hint": "An uncertainty score on each extracted BTC amount or date could gate whether a fact auto-commits to monitor.db or routes to second-pass verification."
+    },
+    {
+      "family": "J",
+      "slug": "colpali-retrieval",
+      "title": "ColPali late-interaction visual retrieval (OCR-free semantic search over PDF page images)",
+      "hint": "Japanese and Korean filings could be indexed as page images and queried for bitcoin-holdings content, surfacing candidate pages for extraction without brittle text pipelines."
+    },
+    {
+      "family": "J",
+      "slug": "group-testing-screening",
+      "title": "Combinatorial group testing (Dorfman pooled screening with bisection of positives)",
+      "hint": "Pooling many small filings into single 'does ANY of these mention crypto-asset holdings?' Claude calls and bisecting only positive pools cuts screening token cost by a large factor since relevant documents are rare."
+    },
+    {
+      "family": "J",
+      "slug": "setfit-fewshot",
+      "title": "SetFit (contrastive few-shot fine-tuning of small sentence-embedding classifiers)",
+      "hint": "Halvex's verified facts double as free labels for local SetFit relevance/document-type gates that run on every inbound document at zero marginal cost."
+    },
+    {
+      "family": "J",
+      "slug": "x402-micropayments",
+      "title": "x402 protocol (HTTP 402 stablecoin micropayments for agent API access)",
+      "hint": "Pay-per-call access to premium disclosure or market-data endpoints, instead of subscriptions, could fill coverage gaps in exactly the small international markets Halvex targets on a limited budget."
+    },
+    {
+      "family": "J",
+      "slug": "bis-project-gaia",
+      "title": "BIS Project Gaia architecture (central-bank blueprint for LLM KPI extraction from heterogeneous reports)",
+      "hint": "Gaia solved nearly Halvex's exact problem at central-bank scale, and its published choices on indicator definitions, chunk retrieval, and validation transplant directly to BTC-holding extraction."
+    },
+    {
+      "family": "K",
+      "slug": "cc-news",
+      "title": "Common Crawl CC-NEWS (free continuous multilingual news WARC stream)",
+      "hint": "A batch scanner over daily CC-NEWS WARCs grepping treasury phrases in 30+ languages could surface small international companies' coverage days before regulator feeds."
+    },
+    {
+      "family": "K",
+      "slug": "cc-columnar-index",
+      "title": "Common Crawl columnar index + host web graph (serverless SQL over crawl metadata)",
+      "hint": "SQL over the Parquet URL index plus link-graph expansion from known treasury-company IR sites enumerates candidate companies and IR endpoints at near-zero fetch cost, including retrospective multilingual sweeps."
+    },
+    {
+      "family": "K",
+      "slug": "gdelt-gkg",
+      "title": "GDELT GKG + Web News NGrams (15-minute global news knowledge graph in 100+ languages)",
+      "hint": "Standing queries over organization-plus-crypto-theme combinations act as a free global early-warning layer for treasury adopters in countries where Halvex has no filing feed."
+    },
+    {
+      "family": "K",
+      "slug": "ct-log-monitoring",
+      "title": "Certificate Transparency log streaming (real-time sensor for new domains and certificates)",
+      "hint": "Watching CT streams for bitcoin/treasury naming patterns and new IR subdomains reveals renamed shells launching treasury vehicles days before any filing or press release exists."
+    },
+    {
+      "family": "K",
+      "slug": "czds-nrd-diffing",
+      "title": "ICANN CZDS zone-file diffing (newly-registered-domain feeds with lexical permutation matching)",
+      "hint": "Daily zone diffs for domains containing treasury/bitcoin tokens or permutations of tracked company names is a near-zero-cost sensor for corporate pivots that predates press releases."
+    },
+    {
+      "family": "K",
+      "slug": "atproto-jetstream",
+      "title": "AT Protocol Jetstream (filterable JSON firehose of the Bluesky network)",
+      "hint": "Filtering posts for treasury-announcement language and cashtags catches the social echo of small-cap announcements hours before news aggregators index them."
+    },
+    {
+      "family": "K",
+      "slug": "nostr-firehose",
+      "title": "Nostr relay subscriptions (server-side filtered streams of a bitcoin-native social network)",
+      "hint": "The bitcoin-treasury community is disproportionately active on Nostr, so cheap filtered relay subscriptions surface rumors of obscure international adopters that never reach mainstream feeds."
+    },
+    {
+      "family": "K",
+      "slug": "wikimedia-eventstreams",
+      "title": "Wikimedia EventStreams (real-time SSE firehose of Wikipedia/Wikidata edits)",
+      "hint": "Edits adding bitcoin-holdings claims to company articles are crowd-sourced discovery signals, with the edit's cited source as a free evidence lead for untracked companies."
+    },
+    {
+      "family": "K",
+      "slug": "self-hosted-search-dsl",
+      "title": "Stract/Marginalia self-hosted search (open web indexes with custom ranking DSLs)",
+      "hint": "Scripted queries with an 'optic' boosting IR pages, regulatory portals, and small-cap news sites give repeatable, rate-limit-free discovery queries no commercial search API allows."
+    },
+    {
+      "family": "K",
+      "slug": "esma-firds",
+      "title": "ESMA FIRDS/FITRS (free bulk EU instrument reference data keyed by LEI)",
+      "hint": "Diffing the free universe of all EU-listed instruments detects new listings, name changes, and delistings of small European companies before they appear in news, feeding discovery."
+    },
+    {
+      "family": "K",
+      "slug": "esap-access-point",
+      "title": "European Single Access Point (single machine-readable feed of all EU listed-company disclosures, 2026-2028)",
+      "hint": "One free upcoming feed could replace much per-country Nordic/EU scraping and surface small EU treasury companies the day they file; building an ingest path now is a first-mover coverage play."
+    },
+    {
+      "family": "K",
+      "slug": "websub-push",
+      "title": "WebSub (W3C push protocol replacing feed polling)",
+      "hint": "IR blogs and newsroom CMSes exposing WebSub hubs could deliver treasury announcements minutes after publication while freeing polling budget for hub-less sources."
+    },
+    {
+      "family": "K",
+      "slug": "easm-enumeration",
+      "title": "EASM-style asset enumeration (Amass/passive-DNS discovery of an organization's web estate)",
+      "hint": "Pointing subdomain and related-domain enumeration at watchlist companies auto-discovers IR feeds, disclosure endpoints, and post-rebrand domains without manual hunting, especially for Japanese/Korean/Nordic issuers."
+    },
+    {
+      "family": "K",
+      "slug": "event-based-surveillance",
+      "title": "Event-Based Surveillance methodology (epidemiology's signal-triage-verify pipeline for open media)",
+      "hint": "Discovery of un-filed international treasury companies is structurally EBS for corporate bitcoin adoption, so the signal, verification, and characterization workflow ports wholesale."
+    },
+    {
+      "family": "K",
+      "slug": "descriptor-watch-wallets",
+      "title": "Watch-only output descriptors + mempool monitoring (minutes-level detection of movements on known wallets)",
+      "hint": "Maintaining descriptors for attributed corporate wallets detects accumulation, custodian migration, or sales within minutes of broadcast, often days before the press release."
+    },
+    {
+      "family": "L",
+      "slug": "pu-learning",
+      "title": "Positive-Unlabeled learning (training detectors from positives plus an unlabeled pool)",
+      "hint": "Known treasury companies are a clean positive set and every other listed company in 33 countries is unlabeled, so a PU model can rank the world's public companies by likelihood of being an undiscovered holder."
+    },
+    {
+      "family": "L",
+      "slug": "tdt-first-story",
+      "title": "First Story Detection (DARPA TDT streaming novelty detection over news)",
+      "hint": "FSD over multilingual feeds surfaces the first-ever announcement of a treasury adoption while suppressing hundreds of follow-up articles, at near-zero LLM cost."
+    },
+    {
+      "family": "L",
+      "slug": "trec-adaptive-filtering",
+      "title": "Adaptive information filtering (TREC standing-query profiles with utility-tuned thresholds)",
+      "hint": "Halvex is literally a standing query over document streams, and adaptive-filtering utility optimization gives principled per-source thresholds for what escalates to expensive LLM extraction."
+    },
+    {
+      "family": "L",
+      "slug": "ppr-seed-expansion",
+      "title": "Personalized PageRank seed expansion (random-walk ranking outward from known-good nodes)",
+      "hint": "PPR from known treasury companies over a graph of co-mentions, shared directors, custodians, and investors ranks candidates likely to announce next — a discovery channel orthogonal to keywords."
+    },
+    {
+      "family": "L",
+      "slug": "kge-link-prediction",
+      "title": "Knowledge-graph embedding link prediction (PyKEEN scoring of plausible missing edges)",
+      "hint": "Link prediction over a graph of companies, sectors, advisors, custodians, and existing holders yields a prioritized watchlist of likely future bitcoin-treasury adopters."
+    },
+    {
+      "family": "L",
+      "slug": "risk-based-alerting",
+      "title": "Risk-based alerting (SIEM pattern accumulating weighted signals per entity until a threshold fires)",
+      "hint": "Accumulating weak signals per company — crypto hires, rebrand, convertible raise, BTC mentions — surfaces small international candidates for agent investigation before any explicit filing."
+    },
+    {
+      "family": "L",
+      "slug": "episode-mining",
+      "title": "Frequent episode mining (WINEPI/MINEPI recurring event patterns in one long stream)",
+      "hint": "Mining corporate-event history for episodes that historically precede a first bitcoin purchase yields an early-warning pattern library for companies about to adopt."
+    },
+    {
+      "family": "L",
+      "slug": "lucene-monitor",
+      "title": "Reverse search / percolation (Lucene Monitor matching documents against thousands of stored queries)",
+      "hint": "Registering per-company and per-pattern standing queries and streaming every fetched item through them replaces ad-hoc grep logic with a scalable, auditable alerting core."
+    },
+    {
+      "family": "L",
+      "slug": "semantic-percolation",
+      "title": "Embedding-based streaming filters (documents scored against fixed intent vectors)",
+      "hint": "A tiny local embedding model scoring every headline against 'company adds bitcoin to balance sheet' vectors pre-filters firehoses and catches paraphrases like 'digital asset reserve strategy' that keywords miss."
+    },
+    {
+      "family": "L",
+      "slug": "reciprocal-rank-fusion",
+      "title": "Reciprocal Rank Fusion (robust unsupervised merging of heterogeneous ranked lists)",
+      "hint": "RRF fuses Halvex's accumulating weak detectors — keyword hits, PU scores, graph proximity, news bursts — into one prioritized review queue without calibrated scores or training data."
+    },
+    {
+      "family": "L",
+      "slug": "entity-salience",
+      "title": "Entity salience detection (scoring whether a mention is central or passing)",
+      "hint": "A cheap salience scorer discards the flood of articles where a tracked company is only name-dropped, routing only articles where it is the actual subject to extraction."
+    },
+    {
+      "family": "L",
+      "slug": "yara-x-prefilter",
+      "title": "YARA-X content rules (high-throughput weighted pattern scanning from malware triage)",
+      "hint": "Versioned multilingual treasury-pattern rules scan every downloaded filing in microseconds as a pre-LLM gate, cutting token spend while keeping recall auditable."
+    },
+    {
+      "family": "L",
+      "slug": "misp-warninglists",
+      "title": "MISP warninglists (versioned false-positive suppression lists)",
+      "hint": "Suppression lists for miners, ETFs, custodians, and 'accepts bitcoin as payment' companies turn tribal false-positive knowledge into reviewable versioned data checked before a candidate enters the watchlist."
+    },
+    {
+      "family": "M",
+      "slug": "focused-crawling",
+      "title": "Focused topical crawling (best-first crawlers concentrating budget on on-topic pages)",
+      "hint": "A focused crawler seeded on IR and crypto-treasury vocabulary sweeps small-cap exchange and IR domains in markets without structured filing APIs — Halvex's hardest coverage gap."
+    },
+    {
+      "family": "M",
+      "slug": "llm-guided-crawling",
+      "title": "LLM-scored crawl frontiers (Craw4LLM-style link prioritization by a cheap model)",
+      "hint": "A Haiku-scored frontier asking 'does this link plausibly lead to bitcoin-holdings evidence?' makes a discovery crawler dramatically more precise per fetched page under the limited budget."
+    },
+    {
+      "family": "M",
+      "slug": "bandit-source-polling",
+      "title": "Multi-armed bandit poll scheduling (Thompson sampling over sources with unknown yield)",
+      "hint": "Treating each of hundreds of feeds as an arm whose reward is 'yielded a new fact' lets Thompson sampling set polling frequency under the API budget instead of fixed systemd cadences."
+    },
+    {
+      "family": "M",
+      "slug": "recrawl-scheduling",
+      "title": "Change-rate-aware recrawl scheduling (Cho/Garcia-Molina freshness models per source)",
+      "hint": "Fitting per-source change-rate models reallocates the same request budget so disclosure-heavy sources get minutes-level polling and dormant ones weekly, detecting announcements sooner."
+    },
+    {
+      "family": "M",
+      "slug": "crawl4ai",
+      "title": "Crawl4AI (Playwright crawler emitting clean token-efficient Markdown for LLMs)",
+      "hint": "Replacing ad-hoc fetch-plus-cleanup steps in per-issuer IR scrapers cuts tokens sent to Claude and improves accuracy on messy international IR pages."
+    },
+    {
+      "family": "M",
+      "slug": "crawlee",
+      "title": "Crawlee (TypeScript crawling framework with persistent queues, retries, session pools)",
+      "hint": "Being TypeScript-native, it gives Halvex's dozens of per-source fetchers a shared restartable request-queue and retry substrate instead of bespoke polling scripts."
+    },
+    {
+      "family": "M",
+      "slug": "curl-cffi-impersonation",
+      "title": "TLS/HTTP2 fingerprint impersonation (curl_cffi presenting browser JA3/JA4 handshakes)",
+      "hint": "Fingerprint-sensitive Korean, Japanese, and Nordic CDN-fronted endpoints become fetchable with cheap plain HTTP instead of escalating to a full browser."
+    },
+    {
+      "family": "M",
+      "slug": "rsshub-feed-synthesis",
+      "title": "RSSHub / RSS-Bridge (community-maintained feed synthesis for feedless sites)",
+      "hint": "Normalizing feedless international IR pages and Asian financial portals into uniform feeds collapses many bespoke scrapers into one ingestion path across 33 countries."
+    },
+    {
+      "family": "M",
+      "slug": "changedetection-watchdog",
+      "title": "changedetection.io-style page monitoring (self-hosted watchers firing on real content change)",
+      "hint": "A cheap watchdog over hundreds of small-cap IR pages wakes a Claude extraction agent only when a page actually changed, saving API budget and catching disclosures sooner."
+    },
+    {
+      "family": "M",
+      "slug": "katana-recon-crawler",
+      "title": "Katana (security-recon crawler mapping hidden endpoints via hybrid static+headless crawling)",
+      "hint": "Mapping an issuer's entire IR site once — hidden PDF endpoints, JSON APIs behind JS — yields a complete fetch target list instead of only the visible news page."
+    },
+    {
+      "family": "M",
+      "slug": "web-bot-auth",
+      "title": "Web Bot Auth (IETF signed-request identity for well-behaved crawlers)",
+      "hint": "A signed, registered Halvex crawler identity keeps legitimate access to Cloudflare/Akamai-fronted IR sites as anti-bot walls tighten across the 33 covered countries."
+    },
+    {
+      "family": "N",
+      "slug": "duckdb-sqlite-sidecar",
+      "title": "DuckDB sqlite_scanner (in-process columnar analytics directly over SQLite files)",
+      "hint": "Heavy cross-company analytics, QA sweeps, and site projection queries run vectorized against monitor.db without changing the canonical store."
+    },
+    {
+      "family": "N",
+      "slug": "sqlite-vec",
+      "title": "sqlite-vec (zero-dependency vector search inside SQLite)",
+      "hint": "Embeddings of filings, news, and company names living inside monitor.db enable semantic dedupe, alias matching, and 'looks like a treasury disclosure' screening with no new infrastructure."
+    },
+    {
+      "family": "N",
+      "slug": "sqlite-session-changesets",
+      "title": "SQLite Session extension (portable row-level changesets that can be inspected, inverted, merged)",
+      "hint": "Parallel Claude agents each produce a changeset against a snapshot, letting the pipeline review, replay, roll back, or merge agent writes deterministically instead of allowing direct mutation."
+    },
+    {
+      "family": "N",
+      "slug": "cr-sqlite",
+      "title": "cr-sqlite (CRDT tables enabling conflict-free multi-writer SQLite merges)",
+      "hint": "Multiple unattended agents or machines write to their own monitor.db replica and merge deterministically, removing write-lock contention for parallel agent fleets."
+    },
+    {
+      "family": "N",
+      "slug": "turso-rust-sqlite",
+      "title": "Turso (Rust SQLite rewrite with async I/O, concurrent writes, deterministic simulation testing)",
+      "hint": "A file-compatible drop-in that removes single-writer bottlenecks when many systemd jobs and Claude agents hit monitor.db, with native vector queries as a bonus."
+    },
+    {
+      "family": "N",
+      "slug": "branchable-databases",
+      "title": "Branchable git-semantics databases (Dolt/TerminusDB branch, row-level diff, merge)",
+      "hint": "Every unattended agent run becomes a branch with a cheap reviewable row-level diff before merge, catching bad extractions before they pollute the canonical database."
+    },
+    {
+      "family": "N",
+      "slug": "feldera-dbsp",
+      "title": "Feldera / DBSP (incremental evaluation of SQL views from input deltas)",
+      "hint": "Site-facing aggregates and derived tables update incrementally as new filings land, replacing cron-style full recomputes and cutting filing-to-site latency."
+    },
+    {
+      "family": "N",
+      "slug": "ducklake",
+      "title": "DuckLake (Parquet lakehouse with catalog metadata in a plain SQL database)",
+      "hint": "Raw filings, extraction runs, and historical snapshots get time-travel queries ('what did we believe about company X on date D') with a SQLite-backed catalog matching the solo-dev stack."
+    },
+    {
+      "family": "N",
+      "slug": "kuzu-embedded-graph",
+      "title": "Kuzu (embedded SQLite-style property-graph database with Cypher)",
+      "hint": "An entity-relationship sidecar graph (subsidiaries, shared officers, custodians) supports cheap multi-hop queries revealing hidden connections between known holders and undiscovered vehicles."
+    },
+    {
+      "family": "N",
+      "slug": "qlever-local-kg",
+      "title": "QLever (single-machine SPARQL over Wikidata-scale local dumps)",
+      "hint": "A local Wikidata/registry dump gives unlimited-budget entity enrichment and candidate sweeps (all listed companies in a country with recent name changes) without rate-limited public APIs."
+    },
+    {
+      "family": "N",
+      "slug": "malloy-semantic-model",
+      "title": "Malloy (semantic modeling language compiling reusable metrics to SQL)",
+      "hint": "One governed definition of 'BTC per share' or 'coverage freshness' is reused identically by the website projection, QA checks, and agent-generated analyses instead of duplicated SQL."
+    },
+    {
+      "family": "O",
+      "slug": "dagster-assets",
+      "title": "Dagster software-defined assets (declarative freshness-driven orchestration)",
+      "hint": "Systemd-timer scripts reframed as declared assets with freshness policies let re-extraction be driven by staleness rather than hand-wired schedules."
+    },
+    {
+      "family": "O",
+      "slug": "sqlmesh",
+      "title": "SQLMesh (virtual environments with semantic understanding of SQL changes)",
+      "hint": "Derivation SQL over monitor.db evolves in a cheap shadow environment and is semantically diffed against production before promotion — safe change management with no staging infra."
+    },
+    {
+      "family": "O",
+      "slug": "dlt-data-load",
+      "title": "dlt (declarative extract-load with automatic schema inference and drift surfacing)",
+      "hint": "The 33-country zoo of registry APIs and IR feeds lands in consistently normalized staging tables with almost no per-source glue code, with schema drift surfaced automatically."
+    },
+    {
+      "family": "O",
+      "slug": "nuclei-templates",
+      "title": "Nuclei template convention (declarative YAML request/matcher/extractor definitions run by one engine)",
+      "hint": "Per-registry and per-issuer scrapers recast as reviewable YAML templates make adding a new country's disclosure endpoint a data change rather than new TypeScript."
+    },
+    {
+      "family": "O",
+      "slug": "odcs-data-contracts",
+      "title": "Open Data Contract Standard (machine-checkable YAML contracts for datasets and pipeline boundaries)",
+      "hint": "Each source ingester and each Claude extraction output carries a contract validated before facts merge into monitor.db, turning implicit expectations about agent output into enforced interfaces."
+    },
+    {
+      "family": "O",
+      "slug": "pointblank-validation",
+      "title": "Pointblank (expectation suites over tables with human-readable quality reports)",
+      "hint": "Suites asserting holdings monotonicity, sane BTC quantities, and cross-table consistency run after each pipeline pass and emit a skimmable report before the site serves the data."
+    },
+    {
+      "family": "O",
+      "slug": "write-audit-publish",
+      "title": "Write-Audit-Publish pattern (stage, audit, then atomically publish data)",
+      "hint": "Agent-extracted facts land in staging, pass invariant checks and a verifier agent, and only then swap atomically into the tables the read-only website projects."
+    },
+    {
+      "family": "O",
+      "slug": "baked-data",
+      "title": "Baked Data architecture (immutable versioned database files shipped per deploy)",
+      "hint": "Publishing the site as content-addressed monitor.db snapshots makes every published state reproducible and rollbackable, cleanly decoupling pipeline writes from what readers see."
+    },
+    {
+      "family": "O",
+      "slug": "metamorphic-testing",
+      "title": "Metamorphic testing (asserting invariance relations across perturbed inputs, no oracle needed)",
+      "hint": "Perturbing filings — reorder sections, translate, rename the company — and asserting extracted facts stay invariant exposes brittle prompts cheaply without hand-labeled gold answers."
+    },
+    {
+      "family": "O",
+      "slug": "xule-dqc-rules",
+      "title": "XULE / XBRL DQC rules engine (declarative data-quality assertion library the SEC itself runs)",
+      "hint": "Adopting the declarative-assertion pattern (or running DQC rules in Arelle) turns extraction QA — sign conventions, unit errors, impossible deltas — into a maintained rule library."
+    },
+    {
+      "family": "O",
+      "slug": "evt-spot-thresholds",
+      "title": "SPOT/DSPOT (extreme-value-theory streaming anomaly thresholds without labels)",
+      "hint": "Statistically principled tail thresholds flag implausible extracted values — a BTC holdings jump or outlier cost basis — as extraction errors or genuine news, replacing hand-tuned sanity bounds."
+    },
+    {
+      "family": "O",
+      "slug": "bocpd-changepoint",
+      "title": "Bayesian Online Changepoint Detection (streaming regime-change detection via run-length posteriors)",
+      "hint": "Applied to per-company signal streams and per-source health metrics, BOCPD flags companies whose behavior shifts pre-announcement and feeds that silently broke."
+    },
+    {
+      "family": "O",
+      "slug": "jidoka-andon",
+      "title": "Jidoka / andon (stop-the-line semantics on detected abnormality)",
+      "hint": "Any anomalous extraction — holdings jump 10x, negative shares, unknown currency — halts publication for that source and raises a visible cord-pull instead of best-effort continuing."
+    },
+    {
+      "family": "P",
+      "slug": "linkml",
+      "title": "LinkML (one YAML model compiled to SQL DDL, JSON Schema, and typed classes)",
+      "hint": "Defining the canonical fact model once generates both the SQLite DDL and the strict JSON contracts extraction agents must emit, eliminating schema drift between database, agents, and website."
+    },
+    {
+      "family": "P",
+      "slug": "ocsf-schema",
+      "title": "OCSF (extensible event-class taxonomy normalizing heterogeneous telemetry)",
+      "hint": "Its class/profile/extension design normalizes the 33-country zoo of disclosure events (8-K, TDnet kaiji, DART, MFN) into one canonical taxonomy with per-source extension fields."
+    },
+    {
+      "family": "P",
+      "slug": "skos-vocabularies",
+      "title": "SKOS concept schemes (controlled vocabularies with multilingual alt-labels and mappings)",
+      "hint": "Filing types and disclosure event kinds managed as SKOS schemes with Japanese/Korean/Nordic altLabels let agents map local-language terminology to one canonical concept ID."
+    },
+    {
+      "family": "P",
+      "slug": "fibo-ontology",
+      "title": "FIBO (formal OWL ontology of financial entities, instruments, and control)",
+      "hint": "Borrowing FIBO's tested definitions of issuer, subsidiary, and control tightens who-'holds'-BTC semantics when a subsidiary or trust does, across 33 jurisdictions."
+    },
+    {
+      "family": "P",
+      "slug": "followthemoney-ftm",
+      "title": "FollowTheMoney 4.0 (statement-based entity model where every property value is a sourced, dated assertion)",
+      "hint": "FtM's battle-tested statement layer — entities as merges of sourced assertions — is directly adoptable for evidence-backed company facts, with a reusable cleaning toolchain."
+    },
+    {
+      "family": "P",
+      "slug": "finos-cdm",
+      "title": "FINOS Common Domain Model (machine-executable lifecycle-event model of financial products)",
+      "hint": "Modeling purchases, sales, pledges, and custody changes as typed lifecycle events whose fold is current state makes the holdings ledger auditable and computable rather than snapshot-based."
+    },
+    {
+      "family": "P",
+      "slug": "actus-contracts",
+      "title": "ACTUS (algorithmic contract types deterministically generating cash-flow obligations)",
+      "hint": "Encoding the convertibles and preferreds that finance BTC purchases as ACTUS types computes dilution and conversion triggers from extracted terms instead of storing prose."
+    },
+    {
+      "family": "P",
+      "slug": "iso24165-dti",
+      "title": "ISO 24165 Digital Token Identifier (canonical registry IDs for digital assets)",
+      "hint": "Using DTIs as the asset key future-proofs the schema against 'bitcoin' ambiguity (forks, wrapped variants) and aligns with MiCA-era European disclosures."
+    },
+    {
+      "family": "P",
+      "slug": "openfigi",
+      "title": "OpenFIGI (free open instrument symbology with a public mapping service)",
+      "hint": "A canonical free way to disambiguate small international tickers across 33 countries' exchanges and detect venue changes without paid market-data APIs."
+    },
+    {
+      "family": "P",
+      "slug": "rules-as-code",
+      "title": "Rules as Code (disclosure obligations encoded as executable logic)",
+      "hint": "Encoding each jurisdiction's disclosure triggers lets Halvex predict when a suspected treasury company MUST file and flag overdue or evaded disclosures."
+    },
+    {
+      "family": "P",
+      "slug": "kgcl-change-language",
+      "title": "KGCL (typed, reviewable change operations on a knowledge base)",
+      "hint": "Agents propose corrections as typed change operations ('update holding of X from N to M citing filing F') instead of raw SQL, giving a reviewable, replayable edit stream for unattended runs."
+    },
+    {
+      "family": "Q",
+      "slug": "opentimestamps",
+      "title": "OpenTimestamps (Bitcoin-anchored proofs that data existed at time T)",
+      "hint": "Timestamping every fetched filing and extracted-fact batch gives cryptographic 'we saw this disclosure at time T' evidence for first-observed dates — anchored, fittingly, in Bitcoin itself."
+    },
+    {
+      "family": "Q",
+      "slug": "in-toto-attestation",
+      "title": "in-toto attestations (signed chain-of-custody metadata across pipeline steps)",
+      "hint": "Each stage — fetch, parse, LLM extract, load — emits attestations binding output hashes to input documents, prompt versions, and agent identity, making every number traceable to a signed chain."
+    },
+    {
+      "family": "Q",
+      "slug": "wacz-signed-capture",
+      "title": "WACZ signed web archives (tamper-evident replayable page captures)",
+      "hint": "Storing a signed WACZ alongside each extracted fact makes the 'evidence-backed' claim literal: replayable snapshots of filings and IR pages that later disappear or change."
+    },
+    {
+      "family": "Q",
+      "slug": "iscc-content-codes",
+      "title": "ISCC (ISO content codes combining similarity matching and byte-integrity in one identifier)",
+      "hint": "One identifier per ingested document simultaneously detects re-published mirrors of the same disclosure across 33 countries' feeds and proves byte-integrity of stored evidence."
+    },
+    {
+      "family": "Q",
+      "slug": "ades-signature-validation",
+      "title": "ETSI AdES validation (verifying digital signatures embedded in regulatory PDFs/XML)",
+      "hint": "Many EDINET, DART, and EU documents already carry embedded signatures; validating at ingest distinguishes authentic regulator-signed filings from tampered mirrors for free confidence uplift."
+    },
+    {
+      "family": "Q",
+      "slug": "immudb-verifiable",
+      "title": "immudb (embedded append-only database with Merkle inclusion/consistency proofs)",
+      "hint": "A verifiable ledger beside monitor.db lets the site prove a holdings number was never quietly rewritten, making corrections auditable rather than destructive."
+    },
+    {
+      "family": "Q",
+      "slug": "nanopublications",
+      "title": "Nanopublications (atomic signed assertion + provenance + publication-info units)",
+      "hint": "Each fact — 'Metaplanet held 3,350 BTC on date D per disclosure H' — is exactly a nanopub; the tripartite structure makes facts independently citable, verifiable, and supersedable."
+    },
+    {
+      "family": "Q",
+      "slug": "stix-sightings",
+      "title": "STIX sighting objects (each independent observation of a claim recorded first-class)",
+      "hint": "Modeling every independent appearance of a claim (filing, TDnet notice, article) as a sighting on the canonical fact gives principled corroboration counts and first-seen/last-seen instead of overwriting evidence."
+    },
+    {
+      "family": "Q",
+      "slug": "misp-decaying-indicators",
+      "title": "MISP decaying indicators (parametric confidence decay reset by fresh sightings)",
+      "hint": "Every stored fact gets a decaying confidence that re-inflates when a fresh filing re-confirms it, so the pipeline knows which companies' data is stale and prioritizes re-verification under budget."
+    },
+    {
+      "family": "Q",
+      "slug": "grade-evidence",
+      "title": "GRADE framework (named upgrade/downgrade criteria for evidence certainty)",
+      "hint": "Grading each fact by source directness, consistency, and staleness gives the website a principled, defensible certainty label instead of ad-hoc confidence."
+    },
+    {
+      "family": "Q",
+      "slug": "forecaster-calibration",
+      "title": "Forecaster calibration practice (Brier-scoring stated confidences against outcomes)",
+      "hint": "Logging LLM confidence versus later-verified correctness per source and prompt builds calibration curves that turn arbitrary model confidences into trustworthy review-prioritization signals."
+    },
+    {
+      "family": "Q",
+      "slug": "standoff-annotation",
+      "title": "W3C Web Annotation / stand-off annotation (extractions as a separate layer over immutable source text)",
+      "hint": "Facts stored as stand-off annotations over pristine filing text let multiple extractor versions layer over the same spans and represent competing extractions explicitly."
+    },
+    {
+      "family": "Q",
+      "slug": "bip322-proof-of-reserves",
+      "title": "BIP-322 signing & proof-of-reserves attestations (cryptographic demonstrations of BTC control and solvency)",
+      "hint": "Parsing and independently re-verifying PoR attestations upgrades holdings facts from 'company said' to 'cryptographically verified' and flags discrepancies with filings."
+    },
+    {
+      "family": "Q",
+      "slug": "utxo-wallet-clustering",
+      "title": "On-chain address clustering (common-input-ownership and change heuristics grouping corporate wallets)",
+      "hint": "From one disclosed address, clustering expands to the company's full wallet footprint, corroborating claimed holdings and detecting unannounced buys or sales from balance changes."
+    },
+    {
+      "family": "Q",
+      "slug": "graphsense-tagpacks",
+      "title": "GraphSense TagPacks (YAML standard for provenance-carrying address-to-actor attribution)",
+      "hint": "Curating company-to-wallet attributions as versioned, sourced TagPack files enables systematic cross-checking of disclosed BTC holdings against on-chain balances."
+    },
+    {
+      "family": "R",
+      "slug": "free-equity-prices",
+      "title": "Free equity price sourcing for 33 markets (exchange EOD files, Stooq, yfinance risk profile)",
+      "hint": ""
+    },
+    {
+      "family": "R",
+      "slug": "btc-fx-reference-rates",
+      "title": "BTC reference rates & central-bank FX feeds without vendors",
+      "hint": ""
+    },
+    {
+      "family": "R",
+      "slug": "shares-outstanding-from-filings",
+      "title": "Shares outstanding, splits & corporate actions from filings themselves (the mNAV denominators)",
+      "hint": ""
+    },
+    {
+      "family": "R",
+      "slug": "cheap-price-qa",
+      "title": "QA for cheap price data (cross-source sanity checks, gaps, outliers)",
+      "hint": ""
+    },
+    {
+      "family": "S",
+      "slug": "intel-tradecraft",
+      "title": "Intelligence-analysis tradecraft (ACH, source grading, calibrated confidence language)",
+      "hint": ""
+    },
+    {
+      "family": "S",
+      "slug": "newsroom-verification",
+      "title": "Newsroom fact-checking practice (two-source rules, verification handbooks)",
+      "hint": ""
+    },
+    {
+      "family": "S",
+      "slug": "forensic-accounting-flags",
+      "title": "Forensic-accounting red flags applied to treasury claims",
+      "hint": ""
+    },
+    {
+      "family": "S",
+      "slug": "osint-provenance-chains",
+      "title": "OSINT verification methodology (Bellingcat-style provenance chains) for corporate claims",
+      "hint": ""
+    },
+    {
+      "family": "T",
+      "slug": "gold-corpus",
+      "title": "Gold filing corpus construction & versioning (sampling, annotation, maintenance)",
+      "hint": ""
+    },
+    {
+      "family": "T",
+      "slug": "regression-canaries",
+      "title": "Canary documents & regression tripwires for extraction pipelines",
+      "hint": ""
+    },
+    {
+      "family": "T",
+      "slug": "error-taxonomy",
+      "title": "Extraction error taxonomies & failure catalogs",
+      "hint": ""
+    },
+    {
+      "family": "T",
+      "slug": "evals-in-ci",
+      "title": "Extraction evals as CI gates (accuracy budgets on every change)",
+      "hint": ""
+    },
+    {
+      "family": "T",
+      "slug": "data-quality-monitoring",
+      "title": "Data-quality monitoring over monitor.db (freshness/completeness/consistency metrics)",
+      "hint": ""
+    },
+    {
+      "family": "U",
+      "slug": "small-model-finetuning",
+      "title": "Fine-tuning small open models for filing extraction (LoRA, distillation)",
+      "hint": ""
+    },
+    {
+      "family": "U",
+      "slug": "prompt-optimization",
+      "title": "Programmatic prompt optimization (DSPy/OPRO lineage)",
+      "hint": ""
+    },
+    {
+      "family": "U",
+      "slug": "long-context-strategy",
+      "title": "Long-context strategies (full-filing single-pass vs chunked extraction)",
+      "hint": ""
+    },
+    {
+      "family": "V",
+      "slug": "correction-capture",
+      "title": "Human corrections as durable assets (every fix becomes a test/label)",
+      "hint": ""
+    },
+    {
+      "family": "V",
+      "slug": "annotation-tooling",
+      "title": "Lightweight span-level annotation tooling for filings",
+      "hint": ""
+    },
+    {
+      "family": "V",
+      "slug": "acceptance-sampling-audits",
+      "title": "Acceptance-sampling spot-check audits (manufacturing QC applied to facts)",
+      "hint": ""
+    },
+    {
+      "family": "W",
+      "slug": "bitemporal-modeling",
+      "title": "Bitemporal modeling (valid time vs knowledge time; as-reported vs as-known)",
+      "hint": ""
+    },
+    {
+      "family": "W",
+      "slug": "event-sourced-facts",
+      "title": "Event-sourced fact ledger (append-only facts with projections)",
+      "hint": ""
+    },
+    {
+      "family": "W",
+      "slug": "schema-evolution",
+      "title": "Schema evolution & migration discipline for a long-lived SQLite DB",
+      "hint": ""
+    },
+    {
+      "family": "W",
+      "slug": "derived-value-discipline",
+      "title": "Derived-value discipline (stored vs computed in projections)",
+      "hint": ""
+    },
+    {
+      "family": "W",
+      "slug": "sqlite-at-scale",
+      "title": "SQLite at scale (WAL, Litestream replication, backup discipline)",
+      "hint": ""
+    },
+    {
+      "family": "W",
+      "slug": "lineage-queryability",
+      "title": "End-to-end data lineage (raw capture to published number, queryable)",
+      "hint": ""
+    },
+    {
+      "family": "W",
+      "slug": "reference-data-scd",
+      "title": "Reference data as slowly-changing dimensions (issuers, instruments, currencies)",
+      "hint": ""
+    },
+    {
+      "family": "X",
+      "slug": "freshness-confidence-ux",
+      "title": "Freshness & confidence UX (as-of stamps, staleness, confidence badges)",
+      "hint": ""
+    },
+    {
+      "family": "X",
+      "slug": "comparative-analytics",
+      "title": "Comparative analytics the data already supports (league tables, cohorts, mNAV distributions)",
+      "hint": ""
+    },
+    {
+      "family": "X",
+      "slug": "public-data-products",
+      "title": "Halvex as citable data source (exports, public API, embeddability)",
+      "hint": ""
+    },
+    {
+      "family": "X",
+      "slug": "outbound-alerts",
+      "title": "User-facing event subscriptions (email/RSS out)",
+      "hint": ""
+    },
+    {
+      "family": "X",
+      "slug": "methodology-transparency",
+      "title": "Public methodology & evidence pages (receipts per number)",
+      "hint": ""
+    },
+    {
+      "family": "X",
+      "slug": "timeseries-storytelling",
+      "title": "Time-series presentation (holdings-over-time narratives, event-annotated charts)",
+      "hint": ""
+    },
+    {
+      "family": "Y",
+      "slug": "fleet-observability",
+      "title": "Automation-fleet observability (structured logs, traces, one health pane)",
+      "hint": ""
+    },
+    {
+      "family": "Y",
+      "slug": "self-healing-pipelines",
+      "title": "Self-healing pipeline patterns (auto-retry, quarantine, dead-letter queues)",
+      "hint": ""
+    },
+    {
+      "family": "Y",
+      "slug": "runbook-automation",
+      "title": "Runbook automation (recurring manual fixes become scripted responses)",
+      "hint": ""
+    },
+    {
+      "family": "Y",
+      "slug": "scheduled-agent-operators",
+      "title": "Scheduled agent operators (the dreamer/overnight pattern generalized)",
+      "hint": ""
+    },
+    {
+      "family": "Y",
+      "slug": "backup-restore-drills",
+      "title": "Backup, restore drills & disaster recovery for the data estate",
+      "hint": ""
+    },
+    {
+      "family": "Y",
+      "slug": "dev-prod-parity",
+      "title": "Dev/prod parity & promotion discipline (snapshots, rehearsal, fingerprints)",
+      "hint": ""
+    },
+    {
+      "family": "Y",
+      "slug": "agent-spend-observability",
+      "title": "Token & API spend observability across automations",
+      "hint": ""
+    }
+  ]
+}

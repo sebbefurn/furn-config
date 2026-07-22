@@ -1,0 +1,17 @@
+[Unit]
+Description=dream timer (fires hourly; the runner's interval gate decides whether a dream runs)
+
+[Timer]
+# Fires every hour on the hour. The cadence rule lives in the queue's interval
+# gate (`dream interval N`), NOT here: encoding it in OnCalendar would mean
+# changing cadence by editing units instead of one mutable state value.
+OnCalendar=*-*-* *:00:00
+# Catch up after reboots / downtime so a missed slot still fires.
+Persistent=true
+# Spread load off the exact minute if it coincides with another timer. The
+# gate's 5-minute slack absorbs this jitter.
+RandomizedDelaySec=120
+Unit=dream.service
+
+[Install]
+WantedBy=timers.target

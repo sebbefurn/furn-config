@@ -145,6 +145,12 @@ clone_pinned https://github.com/christoomey/vim-tmux-navigator "$VIM_NAVIGATOR_R
 # (tree-folding would otherwise symlink the whole dir into the repo).
 mkdir -p "$HOME/.config/claude"
 
+# Same for the dirs the dream package shares with other writers: systemd user
+# units (the halvex automation ln -sf's its own units there) and ~/.local/bin +
+# ~/.local/lib. If stow folded any of these into the repo, those other writers
+# would write INTO furn-config.
+mkdir -p "$HOME/.config/systemd/user" "$HOME/.local/bin" "$HOME/.local/lib"
+
 # ---------------------------------------------------------------------------
 log "Backing up conflicting pre-existing files"
 backup_if_real() {
@@ -165,7 +171,7 @@ backup_if_real .config/claude/accounts
 # ---------------------------------------------------------------------------
 # kitty is stowed on workstation only; everything else is universal.
 log "Stowing packages"
-packages=(zsh tmux vim git claude bin)
+packages=(zsh tmux vim git claude bin dream)
 is_workstation && packages+=(kitty)
 for pkg in "${packages[@]}"; do
   stow --dir="$REPO_DIR/stow" --target="$HOME" --restow "$pkg"
