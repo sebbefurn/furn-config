@@ -17,8 +17,10 @@
 # Accounts: timer-driven dreams alternate strictly over campaign.json's account
 # list (parity recomputed from committed queue state — deterministic and
 # reboot-safe). `dream loop`/`dream once --account X` force one account, e.g. to
-# burn down a quota:  systemd-inhibit --what=sleep:idle dream loop --account sebbe --every 1h
-# (inside tmux; Ctrl-C to stop, then `dream install` to hand over to the timer).
+# burn down a quota:  dream loop --account sebbe --every 1h
+# (inside tmux; Ctrl-C to stop, then `dream install` to hand over to the timer.
+# On a workstation wrap it in `systemd-inhibit --what=sleep:idle` so the box
+# stays awake; a headless server never sleeps and its polkit may deny inhibits).
 #
 # Strictly sequential: one dream at a time, ever — a flock in the state dir
 # guards every dispatch path (timer and loop can coexist; the late one yields).
@@ -53,6 +55,8 @@ usage: dream [--campaign NAME] <command>
                              under systemd-inhibit --what=sleep:idle)
   status                     campaign progress
   interval [N[h]]            print or set the run interval in hours
+  target [PATH]              print or set THIS machine's target repo checkout
+                             (e.g. /srv/halvex/apps/data-pipeline on peppar)
   prompt                     render the NEXT topic's prompt (claims nothing)
   install | uninstall        enable / disable the hourly dream.timer (user unit)
 EOF
@@ -67,8 +71,11 @@ mkdir -p "$STATE" "$LOGS"
 cfg() { python3 -c "import json,sys;print(json.load(open('$CONFIG/campaign.json'))['$1'])"; }
 jget() { python3 -c "import json,sys;v=json.load(sys.stdin).get(\"$1\");print('' if v is None else v)"; }
 
-TARGET="${DREAM_TARGET:-$(cfg target)}"
-TARGET="${TARGET/#\~/$HOME}"
+# Resolved by queue.py: env DREAM_TARGET > per-machine state (`dream target
+# PATH`) > campaign.json default. One resolver, used by CLI and queue alike.
+# NOT validated here — `dream target` must work on a machine whose default
+# path doesn't exist; run_one checks before dispatching.
+TARGET="$("${QUEUE[@]}" target | jget target)"
 SCRATCH_DREAMS="$TARGET/$(cfg scratch_dir)"
 WRITE_ROOT="$TARGET/$(cfg write_root)"
 MODEL="$(cfg model)"
@@ -125,6 +132,11 @@ DRAINED=0
 run_one() {
   local forced="$1" select_args=()
   [[ -n "$forced" ]] && select_args=(--account "$forced")
+
+  if [[ ! -d "$TARGET" ]]; then
+    write_log "FATAL: target checkout not found: $TARGET — set it for this machine with: dream target /path/to/halvex/apps/data-pipeline"
+    return 1
+  fi
 
   local selection
   selection=$("${QUEUE[@]}" select "${select_args[@]}")
@@ -296,6 +308,9 @@ case "$CMD" in
     ;;
   interval)
     if [[ $# -ge 1 ]]; then "${QUEUE[@]}" interval "${1%h}"; else "${QUEUE[@]}" interval; fi
+    ;;
+  target)
+    if [[ $# -ge 1 ]]; then "${QUEUE[@]}" target "$1"; else "${QUEUE[@]}" target; fi
     ;;
   prompt)
     "${QUEUE[@]}" seed > /dev/null 2>&1

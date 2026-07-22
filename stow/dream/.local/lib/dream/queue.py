@@ -26,6 +26,10 @@ Subcommands (invoked by the `dream` CLI; first argument is the campaign name):
                        (`interval` subcommand), default from campaign.json — so
                        changing cadence never touches systemd.
   interval [HOURS]     Print (no arg) or set (arg) the interval in whole hours.
+  target [PATH]        Print (no arg) or set (arg) THIS machine's target repo
+                       checkout — a per-machine state setting, since the same
+                       campaign config serves checkouts at different paths
+                       (workstation vs prod).
   status               Print campaign progress (counts by status + per account).
   peek [--account A]   Same shape as select, but claims nothing.
   select [--account A] Claim the next pending topic: assign the account (forced
@@ -74,9 +78,11 @@ class Campaign:
         self.settings_json = os.path.join(self.state_dir, "settings.json")
         with open(os.path.join(self.config_dir, "campaign.json")) as f:
             self.config = json.load(f)
-        self.target = os.path.expanduser(
-            os.environ.get("DREAM_TARGET", self.config["target"])
-        )
+        # Target checkout resolution: env override > per-machine state setting
+        # (`dream target PATH` — e.g. /srv/halvex on peppar vs ~/Code/halvex on
+        # the workstation) > the campaign default.
+        override = os.environ.get("DREAM_TARGET") or self.settings().get("target")
+        self.target = os.path.expanduser(override or self.config["target"])
         self.scratch_dreams = os.path.join(self.target, self.config["scratch_dir"])
 
     def topics_catalog(self):
@@ -194,6 +200,20 @@ def cmd_interval(c, value):
     print(json.dumps({"interval_hours": hours}))
 
 
+def cmd_target(c, value):
+    if value is None:
+        print(json.dumps({"target": c.target}))
+        return
+    path = os.path.abspath(os.path.expanduser(value))
+    if not os.path.isdir(path):
+        print(f"target is not a directory: {path}", file=sys.stderr)
+        sys.exit(2)
+    s = c.settings()
+    s["target"] = path
+    _atomic_write(c.settings_json, s)
+    print(json.dumps({"target": path}))
+
+
 def _next_account(c, q):
     """Strict alternation over campaign.json's account list; parity is the count
     of already-claimed topics, recomputed from committed state each time —
@@ -266,6 +286,7 @@ def cmd_status(c):
                 "finds": sum(len(t["finds"] or []) for t in done),
                 "failed": sum(1 for t in done if t["error"]),
                 "interval_hours": c.interval_hours(),
+                "target": c.target,
             },
             indent=2,
         )
@@ -323,7 +344,7 @@ def main():
     args = sys.argv[1:]
     if len(args) < 2:
         print(
-            "usage: queue.py CAMPAIGN {seed|gate|status|interval [H]|peek|select [--account A]|finalize IDX EXIT}",
+            "usage: queue.py CAMPAIGN {seed|gate|status|interval [H]|target [PATH]|peek|select [--account A]|finalize IDX EXIT}",
             file=sys.stderr,
         )
         sys.exit(2)
@@ -344,6 +365,8 @@ def main():
         cmd_gate(c)
     elif cmd == "interval":
         cmd_interval(c, rest[0] if rest else None)
+    elif cmd == "target":
+        cmd_target(c, rest[0] if rest else None)
     elif cmd == "status":
         cmd_status(c)
     elif cmd == "peek":
