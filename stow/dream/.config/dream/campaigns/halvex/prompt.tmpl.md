@@ -58,10 +58,13 @@ Claude Code agents. The pipeline surface lives in `scripts/extract/`,
 
 ## How much work this is
 
-**This dream should take roughly 40–60 minutes of genuine research.** You are not
-being scored on speed and nothing is waiting on you — a shallow dream that
-finishes in ten minutes is a failed dream. Go wide, then go deep, then do the
-real work of applying it to this specific codebase. Use your full effort budget.
+**This dream should take AT LEAST 40–60 minutes of genuine research — that is a
+floor, not a ceiling.** You are not being scored on speed and nothing is waiting
+on you: nothing is queued behind this dream, and the only hard stop is a
+~3-hour session kill. A shallow dream that finishes in ten minutes is a failed
+dream; a dream that spends two hours because the topic kept giving is a good
+one. Go wide, then go deep, then do the real work of applying it to this
+specific codebase. Use your full effort budget.
 
 Concretely, a dream that has done its job has: swept the topic from **6+ distinct
 angles**, **fully read 4–6 primary sources** (actual papers/docs/implementations,

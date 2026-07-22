@@ -1,5 +1,5 @@
 [Unit]
-Description=dream — one research dream per qualifying fire (campaign runner from furn-config)
+Description=dream launcher — claim one topic and spawn it as a detached per-dream unit
 After=network-online.target
 Wants=network-online.target
 
@@ -8,17 +8,12 @@ Type=oneshot
 # %h/.npm-global/bin: npm/npx/claude; %h/.local/bin: dream + uvx
 Environment=PATH=%h/.npm-global/bin:%h/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ExecStart=%h/.local/bin/dream run
-# One dream = one bounded Workflow + reads + one write + an artifact publish. The
-# runner caps the inner claude -p via timeout(1) (campaign.json timeout_seconds,
-# 7200s for halvex); this is that plus margin.
-TimeoutStartSec=8000
-# On peppar the dream fans out a Workflow (subagents) while the halvex batch
-# daemon runs. Contain it so the overlap can't OOM the box; MemoryHigh throttles
-# before the MemoryMax kill.
-MemoryAccounting=yes
-MemoryHigh=3.5G
-MemoryMax=5G
-OOMPolicy=continue
+# This unit only seeds/reaps/gates/claims and systemd-run's the actual dream as
+# its own transient unit (dream-<campaign>-<nnn>.service), then exits — that is
+# what lets dreams OVERLAP: an hourly fire is never merged away behind a
+# still-running 2-3h dream, and memory containment (MemoryMax=5G) rides on each
+# per-dream transient unit, not on this launcher.
+TimeoutStartSec=600
 
 [Install]
 WantedBy=default.target

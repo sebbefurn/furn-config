@@ -19,12 +19,20 @@ Subcommands (invoked by the `dream` CLI; first argument is the campaign name):
                        with weight N contributes up to N topics per round, so
                        priority families drain proportionally faster while every
                        family still gets sampled early.
-  gate                 Decide whether THIS fire should run a dream: fires are
+  gate                 Decide whether THIS fire should spawn a dream: fires are
                        gated on wall-clock elapsed since the last dream STARTED
                        being >= the configured interval (minus 5 min of timer
-                       jitter slack). The interval is a mutable state setting
+                       jitter slack) AND dreams in flight being under
+                       campaign.json max_parallel. Dreams OVERLAP by design — a
+                       running dream never blocks the clock, it only occupies a
+                       parallel slot. The interval is a mutable state setting
                        (`interval` subcommand), default from campaign.json — so
                        changing cadence never touches systemd.
+  show IDX             Selection-shaped JSON for an already-claimed topic (the
+                       per-dream transient unit is handed only an index).
+  reap                 Close out running topics far past the hard timeout that
+                       never finalized (unit crashed / OOM-killed / reboot) —
+                       exit 99; a result.json written before death is honored.
   interval [HOURS]     Print (no arg) or set (arg) the interval in whole hours.
   target [PATH]        Print (no arg) or set (arg) THIS machine's target repo
                        checkout — a per-machine state setting, since the same
@@ -46,13 +54,17 @@ This file is pure state + clock; it never launches claude and never touches the
 target repo beyond reading result.json. The `dream` CLI is the only caller.
 """
 
+import fcntl
 import json
 import os
 import sys
 import uuid
+from contextlib import contextmanager
 from datetime import datetime
 
-GATE_SLACK_S = 300  # timer jitter slack: RandomizedDelaySec + scheduling drift
+GATE_SLACK_S = 300   # timer jitter slack: RandomizedDelaySec + scheduling drift
+REAP_GRACE_S = 1800  # past the hard timeout, how long before a running topic
+                     # that never finalized is declared dead and reaped
 
 
 def _now_iso():
@@ -66,6 +78,21 @@ def _atomic_write(path, obj):
         json.dump(obj, f, indent=2)
         f.write("\n")
     os.replace(tmp, path)
+
+
+@contextmanager
+def _queue_lock(c):
+    """Serialize queue mutations: dreams run in PARALLEL (detached per-dream
+    units), so two finalizes — or a select racing a finalize — must never
+    interleave their read-modify-write. Held for the whole mutating command;
+    blocking, since every holder is done in milliseconds."""
+    os.makedirs(c.state_dir, exist_ok=True)
+    with open(os.path.join(c.state_dir, ".queue.lock"), "w") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
 
 
 class Campaign:
@@ -165,8 +192,17 @@ def cmd_seed(c):
 
 
 def cmd_gate(c):
+    """Two conditions, both about STARTS (a running dream never blocks the
+    clock, it only occupies a parallel slot): the interval must have elapsed
+    since the last dream started, and dreams in flight must be under
+    max_parallel."""
     q = c.load_queue()
     interval = c.interval_hours()
+    cap = int(c.config.get("max_parallel", 3))
+    running = sum(1 for t in q["topics"] if t["status"] == "running")
+    if running >= cap:
+        print(json.dumps({"fire": False, "reason": f"parallel cap reached ({running}/{cap} in flight)", "interval_hours": interval}))
+        return
     started = [t["started_at"] for t in q["topics"] if t["started_at"]]
     if not started:
         print(json.dumps({"fire": True, "reason": "no dream has run yet", "interval_hours": interval}))
@@ -179,6 +215,7 @@ def cmd_gate(c):
             {
                 "fire": fire,
                 "interval_hours": interval,
+                "in_flight": running,
                 "last_started": last.isoformat(timespec="seconds"),
                 "elapsed_s": int(elapsed),
             }
@@ -236,8 +273,20 @@ def _selection_json(c, topic, account, session_id, drained=False):
             "family_name": c.family_name(topic["family"]),
             "account": account,
             "session_id": session_id,
+            "status": topic["status"],
         }
     )
+
+
+def cmd_show(c, index):
+    """Print the selection-shaped JSON for an already-claimed topic — the
+    per-dream transient unit is handed only an index and looks the rest up."""
+    q = c.load_queue()
+    topic = next((t for t in q["topics"] if t["index"] == index), None)
+    if topic is None:
+        print(json.dumps({"error": f"no topic with index {index}"}))
+        sys.exit(1)
+    print(_selection_json(c, topic, topic["account"], topic["session_id"]))
 
 
 def cmd_peek(c, forced_account):
@@ -280,6 +329,8 @@ def cmd_status(c):
             {
                 "campaign": c.name,
                 "total": len(topics),
+                "total_pending": by_status.get("pending", 0),
+                "total_running": by_status.get("running", 0),
                 "by_status": by_status,
                 "by_account": by_account,
                 "with_artifact": sum(1 for t in done if t["artifact_url"]),
@@ -293,6 +344,50 @@ def cmd_status(c):
     )
 
 
+def _read_result(c, index):
+    result_path = os.path.join(c.scratch_dreams, f"{index:03d}.result.json")
+    if os.path.exists(result_path):
+        try:
+            with open(result_path) as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {}
+
+
+def _close_topic(topic, exit_code, result, reaped=False):
+    topic["status"] = "done"
+    topic["finished_at"] = _now_iso()
+    topic["exit"] = exit_code
+    topic["artifact_url"] = result.get("artifact_url")
+    topic["finds"] = result.get("finds")
+    if reaped and not result:
+        topic["error"] = "reaped: never finalized (crash/kill/reboot?) and no result.json"
+    elif exit_code != 0 and not result:
+        topic["error"] = f"dream exited {exit_code} with no result.json"
+    elif not result:
+        topic["error"] = "no result.json written by the dream"
+
+
+def cmd_reap(c):
+    """Close out running topics that blew far past the hard timeout without
+    finalizing — their unit crashed, was OOM-killed, or the box rebooted. A
+    result.json the dream managed to write before dying is still honored."""
+    q = c.load_queue()
+    cutoff = int(c.config["timeout_seconds"]) + REAP_GRACE_S
+    now = datetime.now().astimezone()
+    reaped = []
+    for t in q["topics"]:
+        if t["status"] != "running" or not t["started_at"]:
+            continue
+        if (now - datetime.fromisoformat(t["started_at"])).total_seconds() > cutoff:
+            _close_topic(t, 99, _read_result(c, t["index"]), reaped=True)
+            reaped.append(t["index"])
+    if reaped:
+        _atomic_write(c.queue_json, q)
+    print(json.dumps({"count": len(reaped), "reaped": reaped}))
+
+
 def cmd_finalize(c, index, exit_code):
     q = c.load_queue()
     topic = next((t for t in q["topics"] if t["index"] == index), None)
@@ -300,27 +395,12 @@ def cmd_finalize(c, index, exit_code):
         print(json.dumps({"error": f"no topic with index {index}"}))
         sys.exit(1)
 
-    result_path = os.path.join(c.scratch_dreams, f"{index:03d}.result.json")
-    result = {}
-    if os.path.exists(result_path):
-        try:
-            with open(result_path) as f:
-                result = json.load(f)
-        except (json.JSONDecodeError, OSError):
-            result = {}
-
-    topic["status"] = "done"
-    topic["finished_at"] = _now_iso()
-    topic["exit"] = exit_code
-    topic["artifact_url"] = result.get("artifact_url")
-    topic["finds"] = result.get("finds")
-    if exit_code != 0 and not result:
-        topic["error"] = f"dream exited {exit_code} with no result.json"
-    elif not result:
-        topic["error"] = "no result.json written by the dream"
+    result = _read_result(c, index)
+    _close_topic(topic, exit_code, result)
     _atomic_write(c.queue_json, q)
 
     remaining = sum(1 for t in q["topics"] if t["status"] == "pending")
+    in_flight = sum(1 for t in q["topics"] if t["status"] == "running")
     print(
         json.dumps(
             {
@@ -334,7 +414,11 @@ def cmd_finalize(c, index, exit_code):
                 "artifact_url": topic["artifact_url"],
                 "error": topic["error"],
                 "remaining": remaining,
-                "all_done": remaining == 0,
+                "in_flight": in_flight,
+                # Only the LAST closer of the LAST topic announces completion —
+                # with parallel dreams, pending==0 alone still leaves peers in
+                # flight.
+                "all_done": remaining == 0 and in_flight == 0,
             }
         )
     )
@@ -344,7 +428,7 @@ def main():
     args = sys.argv[1:]
     if len(args) < 2:
         print(
-            "usage: queue.py CAMPAIGN {seed|gate|status|interval [H]|target [PATH]|peek|select [--account A]|finalize IDX EXIT}",
+            "usage: queue.py CAMPAIGN {seed|gate|status|interval [H]|target [PATH]|peek|show IDX|select [--account A]|reap|finalize IDX EXIT}",
             file=sys.stderr,
         )
         sys.exit(2)
@@ -359,25 +443,39 @@ def main():
             return rest[1]
         return None
 
+    # Mutators take the queue lock — dreams finalize in parallel now.
     if cmd == "seed":
-        cmd_seed(c)
+        with _queue_lock(c):
+            cmd_seed(c)
     elif cmd == "gate":
         cmd_gate(c)
     elif cmd == "interval":
-        cmd_interval(c, rest[0] if rest else None)
+        with _queue_lock(c):
+            cmd_interval(c, rest[0] if rest else None)
     elif cmd == "target":
-        cmd_target(c, rest[0] if rest else None)
+        with _queue_lock(c):
+            cmd_target(c, rest[0] if rest else None)
     elif cmd == "status":
         cmd_status(c)
     elif cmd == "peek":
         cmd_peek(c, forced_account())
+    elif cmd == "show":
+        if len(rest) != 1:
+            print("usage: queue.py CAMPAIGN show IDX", file=sys.stderr)
+            sys.exit(2)
+        cmd_show(c, int(rest[0]))
     elif cmd == "select":
-        cmd_select(c, forced_account())
+        with _queue_lock(c):
+            cmd_select(c, forced_account())
+    elif cmd == "reap":
+        with _queue_lock(c):
+            cmd_reap(c)
     elif cmd == "finalize":
         if len(rest) != 2:
             print("usage: queue.py CAMPAIGN finalize IDX EXIT", file=sys.stderr)
             sys.exit(2)
-        cmd_finalize(c, int(rest[0]), int(rest[1]))
+        with _queue_lock(c):
+            cmd_finalize(c, int(rest[0]), int(rest[1]))
     else:
         print(f"unknown subcommand: {cmd}", file=sys.stderr)
         sys.exit(2)

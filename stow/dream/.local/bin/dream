@@ -1,32 +1,44 @@
 #!/usr/bin/env bash
 # dream — unattended research-dream campaign runner.
 #
-# Runs ONE dream per qualifying invocation via `claude -p`: claim the next topic
-# from the campaign queue, render its prompt, dispatch a jailed headless agent
-# against the campaign's target repo, record the result, ping Discord. The
-# engine lives here (+ ~/.local/lib/dream/); everything campaign-specific —
-# topics, prompt template, target repo, accounts — lives in
-# ~/.config/dream/campaigns/<name>/ (stowed from furn-config). Mutable state
-# (queue, interval, logs) lives in ~/.local/state/dream/<name>/.
+# Runs research dreams via `claude -p`: claim the next topic from the campaign
+# queue, render its prompt, dispatch a jailed headless agent against the
+# campaign's target repo, record the result, ping Discord. The engine lives
+# here (+ ~/.local/lib/dream/); everything campaign-specific — topics, prompt
+# template, target repo, accounts — lives in ~/.config/dream/campaigns/<name>/
+# (stowed from furn-config). Mutable state (queue, interval, target, logs)
+# lives in ~/.local/state/dream/<name>/.
+#
+# CONCURRENCY MODEL — dreams overlap, launchers don't linger:
+#   `dream run` (the timer's entry) and `dream loop` only CLAIM a topic and
+#   spawn it as its own detached transient systemd unit
+#   (dream-<campaign>-<nnn>.service via systemd-run --user), then exit. So a
+#   1h interval with 2h dreams simply means two dreams in flight — a running
+#   dream is NEVER terminated to start the next one. The interval gate also
+#   caps dreams in flight at campaign.json max_parallel. Queue mutations are
+#   serialized by a lock inside queue.py, so parallel finalizes can't clobber
+#   each other. A dream's only hard stop is the campaign timeout
+#   (timeout_seconds, ~3h) — the prompt's effort guidance is a floor, not a
+#   deadline. Crashed/rebooted dreams that never finalized are reaped (exit 99,
+#   result.json still honored if the dream got that far) on later fires.
 #
 # Cadence has exactly one rule and it lives in the queue, not in systemd: the
-# dream.timer fires `dream run` HOURLY, and the gate runs a dream only when the
-# configured interval has elapsed since the last dream STARTED. Change cadence
-# with `dream interval N` — never by editing units.
+# dream.timer fires `dream run` HOURLY, and the gate spawns a dream only when
+# the configured interval has elapsed since the last dream STARTED (and the
+# parallel cap has room). Change cadence with `dream interval N` — never by
+# editing units.
 #
 # Accounts: timer-driven dreams alternate strictly over campaign.json's account
 # list (parity recomputed from committed queue state — deterministic and
 # reboot-safe). `dream loop`/`dream once --account X` force one account, e.g. to
 # burn down a quota:  dream loop --account sebbe --every 1h
-# (inside tmux; Ctrl-C to stop, then `dream install` to hand over to the timer.
-# On a workstation wrap it in `systemd-inhibit --what=sleep:idle` so the box
-# stays awake; a headless server never sleeps and its polkit may deny inhibits).
+# (inside tmux; Ctrl-C to stop — in-flight dreams keep running detached — then
+# `dream install` to hand over to the timer. On a workstation wrap the loop in
+# `systemd-inhibit --what=sleep:idle` so the box stays awake; a headless server
+# never sleeps and its polkit may deny inhibits).
 #
-# Strictly sequential: one dream at a time, ever — a flock in the state dir
-# guards every dispatch path (timer and loop can coexist; the late one yields).
-#
-# No retries by design: a failed or empty dream still marks its topic done and
-# the campaign moves on — this is a scan, not a guaranteed-yield job.
+# No retries by design: a failed, empty, or reaped dream still marks its topic
+# done and the campaign moves on — this is a scan, not a guaranteed-yield job.
 set -uo pipefail
 
 CAMPAIGN="halvex"
@@ -45,14 +57,17 @@ usage() {
   cat <<EOF
 usage: dream [--campaign NAME] <command>
 
-  run [--force]              one qualifying dream (the timer's entry point):
-                             seed if needed, interval gate (--force skips it),
-                             then claim/dispatch/finalize/ping
-  once [--account A]         one dream NOW, gate skipped (rotation unless --account)
+  run [--force]              the timer's entry point: seed if needed, reap dead
+                             dreams, interval+parallel gate (--force skips it),
+                             then claim ONE topic and spawn it as a detached
+                             per-dream unit (dream-$CAMPAIGN-<nnn>.service)
+  once [--account A]         claim + run one dream in the FOREGROUND now, gate
+                             skipped (rotation unless --account) — blocks up to
+                             the campaign timeout; for by-hand runs
   loop --account A [--every 1h]
-                             foreground burn: one dream per interval on ONE
-                             account until drained or Ctrl-C (run inside tmux,
-                             under systemd-inhibit --what=sleep:idle)
+                             burn mode: spawn one detached dream per interval on
+                             ONE account until the queue drains or Ctrl-C
+                             (in-flight dreams survive the Ctrl-C)
   status                     campaign progress
   interval [N[h]]            print or set the run interval in hours
   target [PATH]              print or set THIS machine's target repo checkout
@@ -74,7 +89,7 @@ jget() { python3 -c "import json,sys;v=json.load(sys.stdin).get(\"$1\");print(''
 # Resolved by queue.py: env DREAM_TARGET > per-machine state (`dream target
 # PATH`) > campaign.json default. One resolver, used by CLI and queue alike.
 # NOT validated here — `dream target` must work on a machine whose default
-# path doesn't exist; run_one checks before dispatching.
+# path doesn't exist; the dispatch path checks before running.
 TARGET="$("${QUEUE[@]}" target | jget target)"
 SCRATCH_DREAMS="$TARGET/$(cfg scratch_dir)"
 WRITE_ROOT="$TARGET/$(cfg write_root)"
@@ -125,35 +140,82 @@ claude_bin() {
   return 1
 }
 
-# --- One dream: claim → render → dispatch → finalize → ping -----------------
-# $1 = forced account name, or "" for rotation. Returns 0 unless dispatch was
-# impossible; sets DRAINED=1 when the queue is empty.
+reap_dead() {
+  local reaped
+  reaped=$("${QUEUE[@]}" reap)
+  if [[ "$(printf '%s' "$reaped" | jget count)" != "0" ]]; then
+    write_log "reaped dead dreams (never finalized — crash/kill/reboot?): $reaped"
+  fi
+}
+
+campaign_complete() {
+  write_log "queue drained — campaign complete; disabling dream.timer (auto-stop)"
+  ping_dreams ":checkered_flag: **Dream campaign complete** — every dream has run. Scan the dreams scratch dir + queue.json."
+  systemctl --user disable --now dream.timer >> "$RUN_LOG" 2>&1 || \
+    write_log "could not disable dream.timer (not fatal; it will just no-op each fire)"
+}
+
+# --- Claim + spawn (the launcher side: returns in seconds) -------------------
+# $1 = forced account name, or "" for rotation. Sets DRAINED=1 on empty queue.
 DRAINED=0
-run_one() {
+spawn_one() {
   local forced="$1" select_args=()
   [[ -n "$forced" ]] && select_args=(--account "$forced")
-
-  if [[ ! -d "$TARGET" ]]; then
-    write_log "FATAL: target checkout not found: $TARGET — set it for this machine with: dream target /path/to/halvex/apps/data-pipeline"
-    return 1
-  fi
 
   local selection
   selection=$("${QUEUE[@]}" select "${select_args[@]}")
   if [[ -z "$selection" ]]; then write_log "queue select produced no output — aborting"; return 1; fi
   if [[ "$(printf '%s' "$selection" | jget drained)" == "True" ]]; then DRAINED=1; return 0; fi
 
-  local index nnn slug title family_name hint account session_id
+  local index nnn slug
   index=$(printf '%s' "$selection" | jget index)
   nnn=$(printf '%s' "$selection" | jget nnn)
   slug=$(printf '%s' "$selection" | jget slug)
-  title=$(printf '%s' "$selection" | jget title)
-  family_name=$(printf '%s' "$selection" | jget family_name)
-  hint=$(printf '%s' "$selection" | jget hint)
-  account=$(printf '%s' "$selection" | jget account)
-  session_id=$(printf '%s' "$selection" | jget session_id)
+
+  write_log "spawning dream $nnn/$slug as transient unit dream-$CAMPAIGN-$nnn (account $(printf '%s' "$selection" | jget account))"
+  # Each dream is its own transient service: it outlives this launcher, shows up
+  # in systemctl --user, and carries its own memory containment (the Workflow
+  # fan-out is the hog — contain the dream, not the launcher). --collect
+  # garbage-collects the unit even if the dream fails.
+  if ! systemd-run --user --collect --quiet \
+      --unit "dream-$CAMPAIGN-$nnn" \
+      --setenv=PATH="$PATH" \
+      ${DREAM_TARGET:+--setenv=DREAM_TARGET="$DREAM_TARGET"} \
+      -p MemoryAccounting=yes -p MemoryHigh=3.5G -p MemoryMax=5G -p OOMPolicy=continue \
+      "$HOME/.local/bin/dream" --campaign "$CAMPAIGN" dispatch "$index"; then
+    write_log "FATAL: systemd-run failed to spawn dream $nnn — finalizing as failed"
+    "${QUEUE[@]}" finalize "$index" 97 >> "$RUN_LOG" 2>&1
+    return 1
+  fi
+  return 0
+}
+
+# --- Dispatch (the blocking side: runs inside the per-dream unit) ------------
+# $1 = index of an already-claimed (running) topic. Renders, runs claude under
+# the campaign timeout, finalizes, pings — and announces campaign completion if
+# this was the last topic.
+dispatch_index() {
+  local index="$1" info
+  info=$("${QUEUE[@]}" show "$index")
+  if [[ "$(printf '%s' "$info" | jget status)" != "running" ]]; then
+    write_log "dispatch $index: topic is not in running state — refusing"; return 1
+  fi
+
+  local nnn slug title family_name hint account session_id
+  nnn=$(printf '%s' "$info" | jget nnn)
+  slug=$(printf '%s' "$info" | jget slug)
+  title=$(printf '%s' "$info" | jget title)
+  family_name=$(printf '%s' "$info" | jget family_name)
+  hint=$(printf '%s' "$info" | jget hint)
+  account=$(printf '%s' "$info" | jget account)
+  session_id=$(printf '%s' "$info" | jget session_id)
   [[ -n "$hint" ]] || hint="none recorded — find the mapping yourself"
 
+  if [[ ! -d "$TARGET" ]]; then
+    write_log "FATAL: target checkout not found: $TARGET — set it with: dream target /path/to/checkout"
+    "${QUEUE[@]}" finalize "$index" 96 >> "$RUN_LOG" 2>&1
+    return 1
+  fi
   local config_dir
   if ! config_dir="$(resolve_account_dir "$account")" || [[ -z "$config_dir" ]]; then
     write_log "FATAL: no logged-in config dir for account '$account' (looked in $HOME/.claude-$account)"
@@ -162,9 +224,9 @@ run_one() {
     return 1
   fi
   local bin
-  if ! bin="$(claude_bin)"; then write_log "FATAL: no claude binary on PATH outside ~/.local/claude-bin"; return 1; fi
+  if ! bin="$(claude_bin)"; then write_log "FATAL: no claude binary on PATH outside ~/.local/claude-bin"; "${QUEUE[@]}" finalize "$index" 95 >> "$RUN_LOG" 2>&1; return 1; fi
 
-  write_log "=== dream $nnn/$slug — account=$account, config=$config_dir, session=$session_id ==="
+  write_log "=== dream $nnn/$slug — account=$account, config=$config_dir, session=$session_id, cap=${TIMEOUT_S}s ==="
 
   mkdir -p "$SCRATCH_DREAMS"
   local prompt_file="$SCRATCH_DREAMS/$nnn.prompt.md"
@@ -193,9 +255,15 @@ PY
 
   local dream_log="$LOGS/$nnn-$slug.log" started_s rc=0
   started_s=$(date +%s)
+  # CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS: a dream is ONE long-running background
+  # Workflow; headless claude only waits its default ~10 min for background work
+  # after the model yields, then terminates the session — which strands the
+  # dream before it converges. Raise the ceiling to the campaign cap: the
+  # timeout(1) below stays the single source of hard-stop truth.
   if ! ( cd "$TARGET" && \
          DREAM_TARGET="$TARGET" DREAM_WRITE_ROOT="$WRITE_ROOT" \
          CLAUDE_CONFIG_DIR="$config_dir" CLAUDE_ACCOUNT="$account" \
+         CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS="$(( TIMEOUT_S * 1000 ))" \
          timeout --foreground --kill-after=30 "${TIMEOUT_S}s" \
            "$bin" -p "$(cat "$prompt_file")" \
              --model "$MODEL" \
@@ -214,7 +282,6 @@ PY
   n_better=$(printf '%s' "$summary" | python3 -c 'import json,sys;print(len(json.load(sys.stdin).get("better") or []))')
   n_worse=$(printf '%s' "$summary" | python3 -c 'import json,sys;print(len(json.load(sys.stdin).get("worse") or []))')
   n_finds=$(printf '%s' "$summary" | python3 -c 'import json,sys;print(len(json.load(sys.stdin).get("finds") or []))')
-  [[ "$(printf '%s' "$summary" | jget all_done)" == "True" ]] && DRAINED=1
 
   if [[ -n "$artifact_url" ]]; then
     ping_dreams ":thought_balloon: **Dream $nnn — $title**
@@ -224,22 +291,10 @@ $artifact_url"
   else
     ping_dreams ":thought_balloon: **Dream $nnn — $title** (account: ${account}) produced no artifact (exit=$rc). See \`$dream_log\`."
   fi
+
+  # The LAST finalize announces completion — launchers are long gone by now.
+  [[ "$(printf '%s' "$summary" | jget all_done)" == "True" ]] && campaign_complete
   return 0
-}
-
-campaign_complete() {
-  write_log "queue drained — campaign complete; disabling dream.timer (auto-stop)"
-  ping_dreams ":checkered_flag: **Dream campaign complete** — every dream has run. Scan the dreams scratch dir + queue.json."
-  systemctl --user disable --now dream.timer >> "$RUN_LOG" 2>&1 || \
-    write_log "could not disable dream.timer (not fatal; it will just no-op each fire)"
-}
-
-take_lock() {
-  exec 9>"$STATE/.dream.lock"
-  if ! flock -n 9; then
-    write_log "a dream is still running — this invocation yields (nothing claimed)"
-    return 1
-  fi
 }
 
 parse_duration_s() {  # 1h / 90m / 3600 → seconds
@@ -251,29 +306,41 @@ parse_duration_s() {  # 1h / 90m / 3600 → seconds
   esac
 }
 
+pending_count() { "${QUEUE[@]}" status | jget total_pending; }
+running_count() { "${QUEUE[@]}" status | jget total_running; }
+
 case "$CMD" in
   run)
     FORCE=0
     [[ "${1:-}" == "--force" ]] && FORCE=1
     "${QUEUE[@]}" seed >> "$RUN_LOG" 2>&1
+    reap_dead
     if [[ "$FORCE" != "1" ]]; then
       gate=$("${QUEUE[@]}" gate)
       if [[ "$(printf '%s' "$gate" | jget fire)" != "True" ]]; then
-        write_log "interval gate: skipping this fire ($gate)"
+        write_log "gate: skipping this fire ($gate)"
         exit 0
       fi
     fi
-    take_lock || exit 0
-    run_one "" || exit 1
-    [[ "$DRAINED" == "1" ]] && campaign_complete
+    spawn_one "" || exit 1
+    if [[ "$DRAINED" == "1" && "$(running_count)" == "0" ]]; then campaign_complete; fi
     ;;
   once)
     ACCOUNT=""
     [[ "${1:-}" == "--account" ]] && { ACCOUNT="${2:?--account needs a value}"; }
     "${QUEUE[@]}" seed >> "$RUN_LOG" 2>&1
-    take_lock || exit 1
-    run_one "$ACCOUNT" || exit 1
-    [[ "$DRAINED" == "1" ]] && echo "queue drained — campaign complete"
+    reap_dead
+    selection=$("${QUEUE[@]}" select ${ACCOUNT:+--account "$ACCOUNT"})
+    if [[ "$(printf '%s' "$selection" | jget drained)" == "True" ]]; then
+      echo "queue drained — campaign complete"; exit 0
+    fi
+    dispatch_index "$(printf '%s' "$selection" | jget index)"
+    ;;
+  dispatch)
+    # Internal: the body of a per-dream transient unit. Expects an
+    # already-claimed topic index.
+    [[ $# -ge 1 ]] || { echo "dream dispatch: needs a topic index" >&2; exit 2; }
+    dispatch_index "$1"
     ;;
   loop)
     ACCOUNT="" EVERY="1h"
@@ -287,19 +354,20 @@ case "$CMD" in
     [[ -n "$ACCOUNT" ]] || { echo "dream loop: --account is required (this mode exists to burn ONE account)" >&2; exit 2; }
     EVERY_S=$(parse_duration_s "$EVERY")
     "${QUEUE[@]}" seed >> "$RUN_LOG" 2>&1
-    write_log "loop: one dream every $EVERY on account '$ACCOUNT' until drained or Ctrl-C"
+    write_log "loop: spawning one detached dream every $EVERY on account '$ACCOUNT' until drained or Ctrl-C (cap $(cfg max_parallel) in flight; in-flight dreams survive Ctrl-C)"
     while :; do
-      t0=$(date +%s)
-      if take_lock; then
-        run_one "$ACCOUNT" || { write_log "loop: dispatch failed — stopping (fix and rerun)"; exit 1; }
-        exec 9>&-
+      reap_dead
+      if [[ "$(pending_count)" == "0" ]]; then
+        if [[ "$(running_count)" == "0" ]]; then campaign_complete; break; fi
+        write_log "loop: queue drained, $(running_count) dream(s) still in flight — checking again in 300s"
+        sleep 300; continue
       fi
-      if [[ "$DRAINED" == "1" ]]; then campaign_complete; break; fi
-      left=$(( EVERY_S - ($(date +%s) - t0) ))
-      if (( left > 0 )); then
-        write_log "loop: next dream in ${left}s"
-        sleep "$left"
+      if (( $(running_count) >= $(cfg max_parallel) )); then
+        write_log "loop: parallel cap reached ($(running_count) in flight) — next attempt in ${EVERY_S}s"
+      else
+        spawn_one "$ACCOUNT" || { write_log "loop: spawn failed — stopping (fix and rerun)"; exit 1; }
       fi
+      sleep "$EVERY_S"
     done
     ;;
   status)
